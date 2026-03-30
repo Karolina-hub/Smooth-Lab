@@ -1,57 +1,55 @@
-:root {
-    --primary-color: #a8dadc; /* Мятный */
-    --accent-color: #457b9d;  /* Синий */
-    --bg-color: #f1faee;      /* Светлый беж */
-    --text-color: #1d3557;    /* Темный */
-}
-
+/* Базовые стили */
 body {
-    font-family: 'Segoe UI', sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f1faee; /* Светлый фон */
+    color: #1d3557; /* Темный текст */
     margin: 0;
-    transition: all 0.3s ease;
+    padding: 20px;
+    line-height: 1.6;
 }
 
-/* Анимация появления контента */
+header {
+    background: #a8dadc; /* Мятный заголовок */
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+nav a {
+    margin-right: 15px;
+    text-decoration: none;
+    color: #457b9d;
+    font-weight: bold;
+}
+
+nav a:hover {
+    color: #1d3557;
+}
+
+.card {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn {
+    background-color: #457b9d;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Анимация */
 .fade-in {
     animation: fadeIn 0.5s ease-in;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Стили для карточек и квиза */
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    transition: transform 0.2s;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-}
-
-.quiz-option {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    margin: 5px 0;
-    border: 1px solid var(--primary-color);
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.quiz-option:hover {
-    background: var(--primary-color);
-}
-
-.error-message {
-    color: #e63946;
-    font-size: 0.8em;
-    margin-top: 5px;
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
