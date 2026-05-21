@@ -3,30 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smooth Lab | Лабораторная №1</title>
+    <title>Smooth Lab | Лабораторная №2</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header class="header">
-        <div class="logo" onclick="location.hash = '#/'">SMOOTH<span>LAB</span></div>
+        <div class="logo" onclick="location.hash = '#/'" style="cursor: pointer;">
+            SMOOTH<span>LAB</span>
+        </div>
         <nav class="nav">
             <a href="#/">Главная</a>
             <a href="#/catalog">Каталог</a>
-            <a href="#/quiz">Квиз</a>
             <a href="#/search">Поиск</a>
-            <a href="#/favorites">Избранное</a>
-            <a href="#/profile">Профиль</a>
-            <a href="#/admin">Админ</a>
-            <a href="#/auth" class="btn-login">Войти</a>
+            <a href="#/quiz">Квиз</a>
+            <a href="#/favorites" id="nav-favorites" style="display: none;">Избранное</a>
+            <a href="#/profile" id="nav-profile" style="display: none;">Профиль</a>
+            <a href="#/admin" id="nav-admin" style="display: none;">Админ</a> 
+            <a href="#/auth" id="nav-auth" class="btn-login">Войти / Регистрация</a>
         </nav>
     </header>
 
-    <main id="app"></main>
+    <main id="app" class="container"></main>
+
+    <div id="recoveryModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content fade-in">
+            <h3>Восстановление доступа</h3>
+            <p id="recoveryQuestion">Загрузка вопроса...</p>
+            <input type="text" id="recoveryAnswer" placeholder="Введите ваш ответ...">
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="submitRecovery()">Войти</button>
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+            </div>
+            <p id="recoveryError" class="error-text" style="color: red; margin-top: 10px;"></p>
+        </div>
+    </div>
 
     <footer class="footer">
-        <p>&copy; 2026 Smooth Lab. Стек: Vanilla JS, SPA Architecture.</p>
+        <p>&copy; 2026 Smooth Lab. Стек: Node.js, MongoDB, Vanilla JS SPA.</p>
     </footer>
 
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
 </body>
 </html>
