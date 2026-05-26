@@ -793,3 +793,97 @@ main {
         padding: 35px 20px;
     }
 }
+
+/* Результат квиза */
+.quiz-result-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: white;
+    border-radius: 15px;
+    padding: 20px 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(255, 143, 163, 0.1);
+}
+
+.quiz-result-icon {
+    font-size: 48px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* Кликабельная карточка метода в каталоге */
+.method-card-link {
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+.method-card-link:hover {
+    border-color: #ff8fa3;
+    transform: translateY(-5px);
+}
+
+.method-card-cta {
+    display: inline-block;
+    margin-top: 12px;
+    color: #ff8fa3;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* Прайс-таблица на странице метода */
+.price-table {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(255, 143, 163, 0.1);
+    overflow: hidden;
+    max-width: 600px;
+}
+
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid #fff5f8;
+    transition: background 0.15s;
+}
+
+.price-row:last-child {
+    border-bottom: none;
+}
+
+.price-row:hover {
+    background: #fff5f8;
+}
+
+.price-zone {
+    color: #4a4a4a;
+    font-size: 15px;
+}
+
+.price-amount {
+    color: #ff8fa3;
+    font-weight: bold;
+    font-size: 16px;
+    white-space: nowrap;
+}
+
+/* Активный пункт меню */
+nav a.nav-active {
+    color: #ff8fa3;
+    border-bottom: 2px solid #ff8fa3;
+    padding-bottom: 2px;
+}
+
+/* Центрирование секций главной страницы */
+.home-stats,
+.methods-grid,
+.home-cta {
+    text-align: center;
+}
+
+.section-title {
+    text-align: center;
+}

@@ -43,7 +43,7 @@ const routes = {
                     </section>
 
                     <section>
-                        <h2 class="section-title">Наши методы</h2>
+                        <h2 class="section-title">Методы</h2>
                         <div class="methods-grid">
                             ${procedures.map(p => `
                                 <div class="method-card">
@@ -77,44 +77,26 @@ const routes = {
     },
     
     '/catalog': async () => {
+        const methods = [
+            { key: 'Лазерная эпиляция', icon: '✨', desc: 'Стойкое сокращение волос на 80–95%. Идеально для тёмных волос.' },
+            { key: 'Электроэпиляция',   icon: '⚡', desc: '100% перманентный результат. Работает на любом цвете волос.' },
+            { key: 'Шугаринг',          icon: '🍯', desc: 'Натуральная паста, минимум боли. Подходит для чувствительной кожи.' },
+            { key: 'Вакcинг',           icon: '🌿', desc: 'Быстрое удаление воском. Гладкость на 2–4 недели.' }
+        ];
         return `
             <div class="fade-in">
                 <h1>Каталог услуг</h1>
-
-                <div class="filters-panel">
-                    <div class="filter-group">
-                        <label>Зона</label>
-                        <select id="filterZone">
-                            <option value="">Все зоны</option>
-                            <option value="Лицо">Лицо</option>
-                            <option value="Тело">Тело</option>
-                            <option value="Руки">Руки</option>
-                            <option value="Ноги">Ноги</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Цена от</label>
-                        <input type="number" id="filterMinPrice" placeholder="0" min="0">
-                    </div>
-                    <div class="filter-group">
-                        <label>Цена до</label>
-                        <input type="number" id="filterMaxPrice" placeholder="9999" min="0">
-                    </div>
-                    <div class="filter-group">
-                        <label>Специалист</label>
-                        <select id="filterMaster">
-                            <option value="">Все специалисты</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" onclick="applyFilters()">Найти</button>
-                    <button class="btn btn-secondary" onclick="resetFilters()">Сбросить</button>
+                <p style="color:#8a5a65; margin-bottom:30px;">Выберите метод, чтобы увидеть доступные зоны и цены.</p>
+                <div class="methods-grid">
+                    ${methods.map(m => `
+                        <div class="method-card method-card-link" onclick="location.hash='#/catalog/${encodeURIComponent(m.key)}'">
+                            <div class="method-icon">${m.icon}</div>
+                            <h3>${m.key}</h3>
+                            <p>${m.desc}</p>
+                            <span class="method-card-cta">Смотреть цены →</span>
+                        </div>
+                    `).join('')}
                 </div>
-
-                <div id="catalogSpinner" class="spinner-wrap">
-                    <div class="spinner"></div>
-                </div>
-                <div id="servicesList" class="services-grid" style="display:none;"></div>
-                <p id="catalogEmpty" style="display:none; text-align:center; color:#8a5a65;">Услуги не найдены.</p>
             </div>`;
     },
 
@@ -293,7 +275,7 @@ function renderServices(items, favoriteIds = []) {
     }).join('');
 }
 
-// ─── Каталог: загрузка, фильтры, лайки ───────────────────────────────────────
+// Каталог: загрузка, фильтры, лайки
 
 // Загружает услуги с учётом текущих фильтров и отрисовывает их
 async function loadCatalog(params = {}) {
@@ -416,20 +398,30 @@ window.toggleFavorite = async (serviceId, btn) => {
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 function updateNav() {
     const token = localStorage.getItem('token');
+    const hash  = window.location.hash.slice(1) || '/';
+
     const navItems = {
-        'nav-auth': !token,
-        'nav-profile': !!token,
+        'nav-auth':      !token,
+        'nav-profile':   !!token,
         'nav-favorites': !!token,
-        'nav-admin': !!token
+        'nav-admin':     !!token,
+        'nav-quiz':      !!token
     };
     for (const [id, show] of Object.entries(navItems)) {
         const el = document.getElementById(id);
         if (el) el.style.display = show ? 'block' : 'none';
     }
+
+    // Подсвечиваем активный пункт меню
+    document.querySelectorAll('nav a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href) return;
+        const linkHash = href.replace('#', '') || '/';
+        const isActive = hash === linkHash || (linkHash !== '/' && hash.startsWith(linkHash));
+        link.classList.toggle('nav-active', isActive);
+    });
 }
 
 window.showModal = (title, text) => {
@@ -631,8 +623,6 @@ function initRegLogic() {
         } catch (err) { msg.innerText = "Ошибка сервера"; }
     };
 }
-
-// ─── Квиз: подбор процедуры ───────────────────────────────────────────────────
 
 // Админ-панель
 
@@ -836,43 +826,55 @@ window.deleteMaster = async (id) => {
     }
 };
 
-// Квиз: подбор процедуры
+// Квиз: подбор метода эпиляции
 
 const QUIZ_STEPS = [
     {
-        id: 'zone',
-        question: 'Какую зону вы хотите проработать?',
-        options: ['Лицо', 'Тело', 'Руки', 'Ноги']
+        id: 'hair',
+        question: 'Какой у вас цвет волос в зоне обработки?',
+        options: [
+            'Тёмные (чёрные или тёмно-коричневые)',
+            'Светлые (русые, рыжие, седые или пушковые)'
+        ]
     },
     {
-        id: 'problem',
-        question: 'Какая у вас основная задача?',
-        options: ['Увлажнение и питание', 'Омоложение и лифтинг', 'Очищение и сужение пор', 'Устранение пигментации', 'Расслабление и снятие стресса']
+        id: 'pain',
+        question: 'Как вы относитесь к болевым ощущениям?',
+        options: [
+            'Хочу минимум боли',
+            'Терплю умеренную боль',
+            'Готова терпеть ради результата'
+        ]
+    },
+    {
+        id: 'result',
+        question: 'Какой результат вам важен?',
+        options: [
+            'Навсегда — хочу забыть об эпиляции',
+            'Надолго — стойкое сокращение волос',
+            'На 2–4 недели — регулярный уход'
+        ]
     },
     {
         id: 'budget',
-        question: 'Ваш бюджет на процедуру?',
-        options: ['До 50 руб.', '50–100 руб.', '100–200 руб.', 'Более 200 руб.']
-    },
-    {
-        id: 'time',
-        question: 'Сколько времени вы готовы уделить?',
-        options: ['До 30 минут', '30–60 минут', 'Более часа']
+        question: 'Ваш бюджет на одну процедуру?',
+        options: [
+            'До 30 руб.',
+            '30–60 руб.',
+            'Более 60 руб.'
+        ]
     }
 ];
 
-// Хранит ответы пользователя
 const quizAnswers = {};
 
-// Инициализирует квиз — показывает первый шаг
 function initQuiz() {
     const container = document.getElementById('quizStep');
     if (!container) return;
-    quizAnswers.currentStep = 0;
+    Object.keys(quizAnswers).forEach(k => delete quizAnswers[k]);
     renderQuizStep(0);
 }
 
-// Отрисовывает текущий шаг квиза
 function renderQuizStep(stepIndex) {
     const container = document.getElementById('quizStep');
     const progressBar = document.getElementById('quizProgressBar');
@@ -888,7 +890,7 @@ function renderQuizStep(stepIndex) {
             <h2 class="quiz-question">${step.question}</h2>
             <div class="quiz-options">
                 ${step.options.map(opt => `
-                    <button class="quiz-option" onclick="selectQuizOption('${step.id}', '${opt}', ${stepIndex})">
+                    <button class="quiz-option" onclick="selectQuizOption('${step.id}', this, ${stepIndex})">
                         ${opt}
                     </button>
                 `).join('')}
@@ -897,16 +899,11 @@ function renderQuizStep(stepIndex) {
         </div>`;
 }
 
-// Обрабатывает выбор варианта ответа
-window.selectQuizOption = (stepId, value, stepIndex) => {
-    quizAnswers[stepId] = value;
+window.selectQuizOption = (stepId, btn, stepIndex) => {
+    quizAnswers[stepId] = btn.textContent.trim();
+    document.querySelectorAll('.quiz-option').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
 
-    // Подсвечиваем выбранный вариант
-    document.querySelectorAll('.quiz-option').forEach(btn => {
-        btn.classList.toggle('selected', btn.textContent.trim() === value);
-    });
-
-    // Небольшая задержка для визуального отклика, затем переходим дальше
     setTimeout(() => {
         if (stepIndex + 1 < QUIZ_STEPS.length) {
             renderQuizStep(stepIndex + 1);
@@ -916,7 +913,25 @@ window.selectQuizOption = (stepId, value, stepIndex) => {
     }, 300);
 };
 
-// Загружает и показывает результаты квиза
+function getRecommendedMethod() {
+    const { hair, pain, result, budget } = quizAnswers;
+
+    // Светлые/седые/рыжие волосы — лазер не работает
+    if (hair && hair.includes('Светлые')) {
+        if (result && result.includes('Навсегда')) return 'Электроэпиляция';
+        return 'Шугаринг';
+    }
+
+    // Тёмные волосы
+    if (result && result.includes('Навсегда')) return 'Электроэпиляция';
+    if (result && result.includes('Надолго')) return 'Лазер';
+
+    // На 2–4 недели
+    if (pain && pain.includes('минимум')) return 'Шугаринг';
+    if (budget && budget.includes('До 30')) return 'Шугаринг';
+    return 'Вакcинг';
+}
+
 async function showQuizResults() {
     const container = document.getElementById('quizStep');
     const progressBar = document.getElementById('quizProgressBar');
@@ -930,41 +945,57 @@ async function showQuizResults() {
             <p style="color:#8a5a65;">Подбираем процедуры...</p>
         </div>`;
 
-    try {
-        // Строим параметры запроса на основе ответов
-        const query = new URLSearchParams();
+    const method = getRecommendedMethod();
 
-        if (quizAnswers.zone) query.set('zone', quizAnswers.zone);
-
-        // Переводим бюджет в диапазон цен
-        const budgetMap = {
-            'До 50 руб.':      { max: 50 },
-            '50–100 руб.':     { min: 50,  max: 100 },
-            '100–200 руб.':    { min: 100, max: 200 },
-            'Более 200 руб.':  { min: 200 }
-        };
-        const budget = budgetMap[quizAnswers.budget];
-        if (budget?.min) query.set('minPrice', budget.min);
-        if (budget?.max) query.set('maxPrice', budget.max);
-
-        const res = await fetch(`http://localhost:5000/api/services?${query}`);
-        if (!res.ok) throw new Error();
-        const services = await res.json();
-
-        if (services.length === 0) {
-            container.innerHTML = `
-                <div class="quiz-card fade-in" style="text-align:center;">
-                    <h2>Ничего не найдено 😔</h2>
-                    <p>По вашим параметрам пока нет подходящих процедур. Попробуйте изменить критерии.</p>
-                    <button class="btn btn-primary" onclick="initQuiz()">Пройти заново</button>
-                </div>`;
-            return;
+    const methodInfo = {
+        'Лазер': {
+            title: 'Лазерная эпиляция',
+            desc: 'Стойкое сокращение волос на 80–95% после курса. Идеально для тёмных волос. Быстро — зона подмышек всего 3 минуты.',
+            icon: '✨',
+            search: 'Лазер'
+        },
+        'Электроэпиляция': {
+            title: 'Электроэпиляция',
+            desc: 'Единственный метод со 100% перманентным результатом. Работает на любом цвете волос, включая седые и пушковые.',
+            icon: '⚡',
+            search: 'Электроэпиляция'
+        },
+        'Шугаринг': {
+            title: 'Шугаринг',
+            desc: 'Натуральная паста, минимум боли и раздражения. Подходит для чувствительной кожи. Гладкость на 2–4 недели.',
+            icon: '🍯',
+            search: 'Шугаринг'
+        },
+        'Вакcинг': {
+            title: 'Вакcинг',
+            desc: 'Быстрое удаление воском для больших зон. Гладкость на 2–4 недели. Подходит для жёстких волос.',
+            icon: '🌿',
+            search: 'Вакcинг'
         }
+    };
+
+    const info = methodInfo[method];
+
+    try {
+        const res = await fetch(`http://localhost:5000/api/services?search=${encodeURIComponent(info.search)}`);
+        const services = await res.json();
 
         container.innerHTML = `
             <div class="fade-in">
-                <h2 style="color:#ff8fa3; margin-bottom:20px;">Мы подобрали для вас ${services.length} процедур${services.length === 1 ? 'у' : 'ы'}:</h2>
-                <div class="services-grid">${renderServices(services, [])}</div>
+                <div class="quiz-result-header">
+                    <div class="quiz-result-icon">${info.icon}</div>
+                    <div>
+                        <p class="quiz-step-label">Наша рекомендация</p>
+                        <h2 style="margin:0; color:#ff8fa3;">${info.title}</h2>
+                    </div>
+                </div>
+                <p style="color:#8a5a65; margin-bottom:30px;">${info.desc}</p>
+
+                ${services.length > 0 ? `
+                    <h3 style="margin-bottom:15px;">Доступные процедуры:</h3>
+                    <div class="services-grid">${renderServices(services, [])}</div>
+                ` : '<p style="color:#8a5a65;">Процедуры этого метода скоро появятся в каталоге.</p>'}
+
                 <button class="btn btn-secondary" onclick="initQuiz()" style="margin-top:30px;">← Пройти заново</button>
             </div>`;
 
@@ -977,52 +1008,78 @@ async function showQuizResults() {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 // Главный роутер
 async function router() {
     const hash = window.location.hash.slice(1) || '/';
     const app = document.getElementById('app');
     const token = localStorage.getItem('token');
 
-    if (['/profile', '/admin', '/favorites'].includes(hash) && !token) {
+    if (['/profile', '/admin', '/favorites', '/quiz'].includes(hash) && !token) {
         window.location.hash = '#/auth';
         return;
     }
 
     if (hash.startsWith('/catalog/')) {
-        const id = hash.split('/')[2];
+        const methodName = decodeURIComponent(hash.split('/catalog/')[1]);
         try {
-            const res = await fetch(`http://localhost:5000/api/services/${id}`);
-            if (!res.ok) { app.innerHTML = `<h1>Услуга не найдена</h1>`; return; }
-            const item = await res.json();
-            const resMasters = await fetch(`http://localhost:5000/api/masters`);
-            const allMasters = await resMasters.json();
-            const masters = allMasters.filter(m => m.service === id || (m.service && m.service._id === id));
+            const spinner = `<div class="spinner-wrap"><div class="spinner"></div></div>`;
+            app.innerHTML = `<div class="fade-in"><h1>${methodName}</h1>${spinner}</div>`;
+
+            const [servicesRes, mastersRes] = await Promise.all([
+                fetch(`http://localhost:5000/api/services?method=${encodeURIComponent(methodName)}`),
+                fetch('http://localhost:5000/api/masters')
+            ]);
+            const services = await servicesRes.json();
+            const masters  = await mastersRes.json();
+
+            const methodMasters = masters.filter(m =>
+                services.some(s => s._id === (m.service?._id || m.service))
+            );
+
+            const methodIcons = {
+                'Лазерная эпиляция': '✨',
+                'Электроэпиляция':   '⚡',
+                'Шугаринг':          '🍯',
+                'Вакcинг':           '🌿'
+            };
 
             app.innerHTML = `
                 <div class="fade-in">
-                    <h1>${item.title}</h1>
-                    <div class="card">
-                        <p>${item.description || 'Описание скоро появится.'}</p>
-                        <p><strong>Цена: ${item.price} руб.</strong></p>
+                    <button class="btn btn-secondary" onclick="location.hash='#/catalog'" style="margin-bottom:20px;">← Назад к методам</button>
+                    <h1>${methodIcons[methodName] || ''} ${methodName}</h1>
+
+                    <h2 style="margin:30px 0 15px;">Зоны и цены</h2>
+                    <div class="price-table">
+                        ${services.length > 0
+                            ? services.map(s => `
+                                <div class="price-row">
+                                    <span class="price-zone">${s.title}</span>
+                                    <span class="price-amount">${s.price} руб.</span>
+                                </div>`).join('')
+                            : '<p style="color:#8a5a65;">Прайс скоро появится.</p>'
+                        }
                     </div>
-                    <h2 style="margin-top: 40px;">Наши специалисты:</h2>
-                    <div class="services-grid">
-                        ${masters.length > 0 ? masters.map(m => `
-                            <div class="card">
-                                <img src="${m.photo || 'https://via.placeholder.com/150'}" style="width:100%; border-radius:10px; margin-bottom:10px;">
-                                <h3>${m.name}</h3>
-                                <p><em>${m.specialization}</em></p>
-                                <p>Опыт: ${m.experience}</p>
-                                <button class="btn" onclick="showModal('Запись', 'Вы выбрали специалиста: ${m.name}. Ожидайте звонка!')">Записаться</button>
-                            </div>
-                        `).join('') : '<p>Специалисты подбираются.</p>'}
-                    </div>
-                    <button class="btn" onclick="location.hash = '#/catalog'" style="margin-top:20px; background: #8a5a65; color: white;">Назад к услугам</button>
+
+                    ${methodMasters.length > 0 ? `
+                        <h2 style="margin:40px 0 15px;">Наши специалисты</h2>
+                        <div class="services-grid">
+                            ${methodMasters.map(m => `
+                                <div class="card">
+                                    <img src="${m.photo || 'https://via.placeholder.com/150'}" style="width:100%; border-radius:10px; margin-bottom:10px;" alt="${m.name}">
+                                    <h3>${m.name}</h3>
+                                    <p><em>${m.specialization}</em></p>
+                                    <p>Опыт: ${m.experience}</p>
+                                    <button class="btn btn-primary" onclick="showModal('Запись', 'Вы выбрали специалиста: ${m.name}. Ожидайте звонка!')">Записаться</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>`;
             return;
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            app.innerHTML = `<div class="fade-in"><h1>Ошибка загрузки</h1><p class="error-text">Не удалось загрузить данные. Проверьте соединение.</p></div>`;
+            return;
+        }
     }
 
     const viewFunc = routes[hash] || (() => '<div class="fade-in"><h1>404 — Страница не найдена</h1><p>Такой страницы не существует.</p><a href="#/" class="btn btn-primary" style="margin-top:20px;">На главную</a></div>');

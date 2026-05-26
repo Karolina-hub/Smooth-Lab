@@ -5,28 +5,25 @@ const Master = require('../models/Master');
 const auth = require('../middleware/authMiddleware');
 
 // Получить список услуг с поддержкой фильтрации и поиска
-// Параметры: ?zone=Лицо&minPrice=100&maxPrice=500&master=<id>&search=название
+// Параметры: ?zone=Лицо&minPrice=100&maxPrice=500&master=<id>&search=название&method=Лазерная эпиляция
 router.get('/', async (req, res) => {
     try {
-        const { zone, minPrice, maxPrice, master, search } = req.query;
+        const { zone, minPrice, maxPrice, master, search, method } = req.query;
         const filter = {};
 
-        // Фильтр по зоне
-        if (zone) filter.zone = zone;
+        if (zone)   filter.zone   = zone;
+        if (method) filter.method = method;
 
-        // Фильтр по диапазону цены
         if (minPrice || maxPrice) {
             filter.price = {};
             if (minPrice) filter.price.$gte = Number(minPrice);
             if (maxPrice) filter.price.$lte = Number(maxPrice);
         }
 
-        // Поиск по названию (регистронезависимый)
         if (search) filter.title = { $regex: search, $options: 'i' };
 
-        let services = await Service.find(filter).sort({ createdAt: -1 });
+        let services = await Service.find(filter).sort({ price: 1 });
 
-        // Фильтр по мастеру: оставляем только услуги, у которых есть этот мастер
         if (master) {
             const masterDoc = await Master.findById(master);
             if (masterDoc) {
