@@ -20,7 +20,6 @@ const routes = {
                             <option value="Тело">Тело</option>
                             <option value="Руки">Руки</option>
                             <option value="Ноги">Ноги</option>
-                            <option value="Волосы">Волосы</option>
                         </select>
                     </div>
                     <div class="filter-group">
@@ -139,7 +138,6 @@ const routes = {
                         <option value="Тело">Тело</option>
                         <option value="Руки">Руки</option>
                         <option value="Ноги">Ноги</option>
-                        <option value="Волосы">Волосы</option>
                     </select>
                     <button type="submit" class="btn btn-primary">Добавить услугу</button>
                 </form>
@@ -774,7 +772,7 @@ const QUIZ_STEPS = [
     {
         id: 'zone',
         question: 'Какую зону вы хотите проработать?',
-        options: ['Лицо', 'Тело', 'Руки', 'Ноги', 'Волосы']
+        options: ['Лицо', 'Тело', 'Руки', 'Ноги']
     },
     {
         id: 'problem',
