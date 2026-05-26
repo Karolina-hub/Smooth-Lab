@@ -119,6 +119,18 @@ const routes = {
         }
     },
 
+    '/quiz': () => `
+        <div class="fade-in">
+            <h1>Подбор процедуры</h1>
+            <p style="color:#8a5a65; margin-bottom:30px;">Ответьте на несколько вопросов — мы подберём подходящие услуги именно для вас.</p>
+            <div id="quizContainer">
+                <div class="quiz-progress">
+                    <div class="quiz-progress-bar" id="quizProgressBar" style="width:25%"></div>
+                </div>
+                <div id="quizStep"></div>
+            </div>
+        </div>`,
+
     '/favorites': async () => {
         const token = localStorage.getItem('token');
         if (!token) return `<h1>Загрузка...</h1>`;
@@ -505,6 +517,149 @@ function initRegLogic() {
     };
 }
 
+// ─── Квиз: подбор процедуры ───────────────────────────────────────────────────
+
+const QUIZ_STEPS = [
+    {
+        id: 'zone',
+        question: 'Какую зону вы хотите проработать?',
+        options: ['Лицо', 'Тело', 'Руки', 'Ноги', 'Волосы']
+    },
+    {
+        id: 'problem',
+        question: 'Какая у вас основная задача?',
+        options: ['Увлажнение и питание', 'Омоложение и лифтинг', 'Очищение и сужение пор', 'Устранение пигментации', 'Расслабление и снятие стресса']
+    },
+    {
+        id: 'budget',
+        question: 'Ваш бюджет на процедуру?',
+        options: ['До 50 руб.', '50–100 руб.', '100–200 руб.', 'Более 200 руб.']
+    },
+    {
+        id: 'time',
+        question: 'Сколько времени вы готовы уделить?',
+        options: ['До 30 минут', '30–60 минут', 'Более часа']
+    }
+];
+
+// Хранит ответы пользователя
+const quizAnswers = {};
+
+// Инициализирует квиз — показывает первый шаг
+function initQuiz() {
+    const container = document.getElementById('quizStep');
+    if (!container) return;
+    quizAnswers.currentStep = 0;
+    renderQuizStep(0);
+}
+
+// Отрисовывает текущий шаг квиза
+function renderQuizStep(stepIndex) {
+    const container = document.getElementById('quizStep');
+    const progressBar = document.getElementById('quizProgressBar');
+    if (!container) return;
+
+    const step = QUIZ_STEPS[stepIndex];
+    const progress = Math.round(((stepIndex + 1) / QUIZ_STEPS.length) * 100);
+    if (progressBar) progressBar.style.width = progress + '%';
+
+    container.innerHTML = `
+        <div class="quiz-card fade-in">
+            <p class="quiz-step-label">Вопрос ${stepIndex + 1} из ${QUIZ_STEPS.length}</p>
+            <h2 class="quiz-question">${step.question}</h2>
+            <div class="quiz-options">
+                ${step.options.map(opt => `
+                    <button class="quiz-option" onclick="selectQuizOption('${step.id}', '${opt}', ${stepIndex})">
+                        ${opt}
+                    </button>
+                `).join('')}
+            </div>
+            ${stepIndex > 0 ? `<button class="btn btn-secondary quiz-back" onclick="renderQuizStep(${stepIndex - 1})">← Назад</button>` : ''}
+        </div>`;
+}
+
+// Обрабатывает выбор варианта ответа
+window.selectQuizOption = (stepId, value, stepIndex) => {
+    quizAnswers[stepId] = value;
+
+    // Подсвечиваем выбранный вариант
+    document.querySelectorAll('.quiz-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.textContent.trim() === value);
+    });
+
+    // Небольшая задержка для визуального отклика, затем переходим дальше
+    setTimeout(() => {
+        if (stepIndex + 1 < QUIZ_STEPS.length) {
+            renderQuizStep(stepIndex + 1);
+        } else {
+            showQuizResults();
+        }
+    }, 300);
+};
+
+// Загружает и показывает результаты квиза
+async function showQuizResults() {
+    const container = document.getElementById('quizStep');
+    const progressBar = document.getElementById('quizProgressBar');
+    if (!container) return;
+
+    if (progressBar) progressBar.style.width = '100%';
+
+    container.innerHTML = `
+        <div class="quiz-card fade-in" style="text-align:center;">
+            <div class="spinner-wrap"><div class="spinner"></div></div>
+            <p style="color:#8a5a65;">Подбираем процедуры...</p>
+        </div>`;
+
+    try {
+        // Строим параметры запроса на основе ответов
+        const query = new URLSearchParams();
+
+        if (quizAnswers.zone) query.set('zone', quizAnswers.zone);
+
+        // Переводим бюджет в диапазон цен
+        const budgetMap = {
+            'До 50 руб.':      { max: 50 },
+            '50–100 руб.':     { min: 50,  max: 100 },
+            '100–200 руб.':    { min: 100, max: 200 },
+            'Более 200 руб.':  { min: 200 }
+        };
+        const budget = budgetMap[quizAnswers.budget];
+        if (budget?.min) query.set('minPrice', budget.min);
+        if (budget?.max) query.set('maxPrice', budget.max);
+
+        const res = await fetch(`http://localhost:5000/api/services?${query}`);
+        if (!res.ok) throw new Error();
+        const services = await res.json();
+
+        if (services.length === 0) {
+            container.innerHTML = `
+                <div class="quiz-card fade-in" style="text-align:center;">
+                    <h2>Ничего не найдено 😔</h2>
+                    <p>По вашим параметрам пока нет подходящих процедур. Попробуйте изменить критерии.</p>
+                    <button class="btn btn-primary" onclick="initQuiz()">Пройти заново</button>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="fade-in">
+                <h2 style="color:#ff8fa3; margin-bottom:20px;">Мы подобрали для вас ${services.length} процедур${services.length === 1 ? 'у' : 'ы'}:</h2>
+                <div class="services-grid">${renderServices(services, [])}</div>
+                <button class="btn btn-secondary" onclick="initQuiz()" style="margin-top:30px;">← Пройти заново</button>
+            </div>`;
+
+    } catch (err) {
+        container.innerHTML = `
+            <div class="quiz-card fade-in" style="text-align:center;">
+                <p class="error-text">Не удалось загрузить результаты. Проверьте соединение.</p>
+                <button class="btn btn-primary" onclick="initQuiz()">Попробовать снова</button>
+            </div>`;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Главный роутер
 async function router() {
     const hash = window.location.hash.slice(1) || '/';
@@ -561,6 +716,10 @@ async function router() {
     // После рендера каталога — загружаем данные
     if (hash === '/catalog') {
         loadCatalog();
+    }
+    // После рендера квиза — инициализируем первый шаг
+    if (hash === '/quiz') {
+        initQuiz();
     }
     updateNav(); 
 }
