@@ -533,3 +533,114 @@ main {
         font-size: 18px;
     }
 }
+
+/* Админ-панель */
+.admin-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.admin-tab {
+    background: none;
+    border: 2px solid #ffd1dc;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-size: 15px;
+    font-weight: bold;
+    color: #8a5a65;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.admin-tab:hover {
+    border-color: #ff8fa3;
+    color: #ff8fa3;
+}
+
+.admin-tab.active {
+    background: #ff8fa3;
+    border-color: #ff8fa3;
+    color: white;
+}
+
+.admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 480px;
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(255, 143, 163, 0.1);
+    margin-bottom: 10px;
+}
+
+.admin-form input,
+.admin-form textarea,
+.admin-form select {
+    padding: 12px;
+    border: 1px solid #ffd1dc;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+}
+
+.admin-form input:focus,
+.admin-form textarea:focus,
+.admin-form select:focus {
+    border-color: #ff8fa3;
+}
+
+.admin-msg {
+    font-weight: bold;
+    font-size: 14px;
+    min-height: 20px;
+    margin: 0;
+}
+
+.admin-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 14px 18px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(255, 143, 163, 0.08);
+    gap: 10px;
+}
+
+.btn-delete {
+    background: #fff0f3;
+    border: 1px solid #ff4d6d;
+    color: #ff4d6d;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.btn-delete:hover {
+    background: #ff4d6d;
+    color: white;
+}
+
+@media (max-width: 480px) {
+    .admin-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-form {
+        padding: 18px;
+    }
+}

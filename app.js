@@ -119,6 +119,53 @@ const routes = {
         }
     },
 
+    '/admin': () => `
+        <div class="fade-in">
+            <h1>Панель управления</h1>
+
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="switchAdminTab('services', this)">Услуги</button>
+                <button class="admin-tab" onclick="switchAdminTab('masters', this)">Мастера</button>
+            </div>
+
+            <div id="adminServices">
+                <h2>Добавить услугу</h2>
+                <form id="addServiceForm" class="admin-form">
+                    <input type="text" id="svcTitle" placeholder="Название услуги" required>
+                    <input type="number" id="svcPrice" placeholder="Цена (руб.)" min="1" required>
+                    <textarea id="svcDesc" placeholder="Описание" rows="3"></textarea>
+                    <select id="svcZone">
+                        <option value="Лицо">Лицо</option>
+                        <option value="Тело">Тело</option>
+                        <option value="Руки">Руки</option>
+                        <option value="Ноги">Ноги</option>
+                        <option value="Волосы">Волосы</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Добавить услугу</button>
+                </form>
+                <p id="svcMsg" class="admin-msg"></p>
+                <h2 style="margin-top:30px;">Список услуг</h2>
+                <div id="adminServicesList"></div>
+            </div>
+
+            <div id="adminMasters" style="display:none;">
+                <h2>Добавить мастера</h2>
+                <form id="addMasterForm" class="admin-form">
+                    <input type="text" id="mstrName" placeholder="Имя мастера" required>
+                    <input type="text" id="mstrSpec" placeholder="Специализация" required>
+                    <input type="text" id="mstrExp" placeholder="Опыт (напр. 5 лет)" required>
+                    <input type="url" id="mstrPhoto" placeholder="Ссылка на фото (необязательно)">
+                    <select id="mstrService" required>
+                        <option value="" disabled selected>Выберите услугу</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Добавить мастера</button>
+                </form>
+                <p id="mstrMsg" class="admin-msg"></p>
+                <h2 style="margin-top:30px;">Список мастеров</h2>
+                <div id="adminMastersList"></div>
+            </div>
+        </div>`,
+
     '/quiz': () => `
         <div class="fade-in">
             <h1>Подбор процедуры</h1>
@@ -519,6 +566,210 @@ function initRegLogic() {
 
 // ─── Квиз: подбор процедуры ───────────────────────────────────────────────────
 
+// Админ-панель
+
+function switchAdminTab(tab, btn) {
+    document.getElementById('adminServices').style.display = tab === 'services' ? 'block' : 'none';
+    document.getElementById('adminMasters').style.display  = tab === 'masters'  ? 'block' : 'none';
+    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+async function initAdmin() {
+    await Promise.all([loadAdminServices(), loadAdminMasters()]);
+    initAddServiceForm();
+    initAddMasterForm();
+}
+
+async function loadAdminServices() {
+    const container = document.getElementById('adminServicesList');
+    if (!container) return;
+    try {
+        const res = await fetch('http://localhost:5000/api/services');
+        const services = await res.json();
+        if (services.length === 0) {
+            container.innerHTML = '<p style="color:#8a5a65;">Услуг пока нет.</p>';
+            return;
+        }
+        container.innerHTML = services.map(s => `
+            <div class="admin-row">
+                <div>
+                    <strong>${s.title}</strong>
+                    <span class="card-zone-badge" style="margin-left:8px;">${s.zone || 'Лицо'}</span>
+                    <span style="color:#ff8fa3; margin-left:8px;">${s.price} руб.</span>
+                </div>
+                <button class="btn-delete" onclick="deleteService('${s._id}')">Удалить</button>
+            </div>`).join('');
+    } catch (err) {
+        container.innerHTML = '<p class="error-text">Не удалось загрузить услуги.</p>';
+    }
+}
+
+async function loadAdminMasters() {
+    const container = document.getElementById('adminMastersList');
+    const serviceSelect = document.getElementById('mstrService');
+    if (!container) return;
+    try {
+        const [mastersRes, servicesRes] = await Promise.all([
+            fetch('http://localhost:5000/api/masters'),
+            fetch('http://localhost:5000/api/services')
+        ]);
+        const masters  = await mastersRes.json();
+        const services = await servicesRes.json();
+
+        // Заполняем select услуг в форме добавления мастера
+        if (serviceSelect) {
+            serviceSelect.innerHTML = '<option value="" disabled selected>Выберите услугу</option>';
+            services.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s._id;
+                opt.textContent = s.title;
+                serviceSelect.appendChild(opt);
+            });
+        }
+
+        if (masters.length === 0) {
+            container.innerHTML = '<p style="color:#8a5a65;">Мастеров пока нет.</p>';
+            return;
+        }
+        container.innerHTML = masters.map(m => `
+            <div class="admin-row">
+                <div>
+                    <strong>${m.name}</strong>
+                    <span style="color:#8a5a65; margin-left:8px;">${m.specialization}</span>
+                </div>
+                <button class="btn-delete" onclick="deleteMaster('${m._id}')">Удалить</button>
+            </div>`).join('');
+    } catch (err) {
+        container.innerHTML = '<p class="error-text">Не удалось загрузить мастеров.</p>';
+    }
+}
+
+function initAddServiceForm() {
+    const form = document.getElementById('addServiceForm');
+    if (!form) return;
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const msg   = document.getElementById('svcMsg');
+        const token = localStorage.getItem('token');
+        const body  = {
+            title:       document.getElementById('svcTitle').value.trim(),
+            price:       Number(document.getElementById('svcPrice').value),
+            description: document.getElementById('svcDesc').value.trim(),
+            zone:        document.getElementById('svcZone').value
+        };
+
+        if (!body.title || !body.price) {
+            msg.style.color = 'red';
+            msg.textContent = 'Заполните название и цену.';
+            return;
+        }
+
+        try {
+            const res = await fetch('http://localhost:5000/api/services', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                msg.style.color = 'green';
+                msg.textContent = 'Услуга добавлена!';
+                form.reset();
+                await loadAdminServices();
+            } else {
+                const data = await res.json();
+                msg.style.color = 'red';
+                msg.textContent = data.message || 'Ошибка при добавлении.';
+            }
+        } catch (err) {
+            msg.style.color = 'red';
+            msg.textContent = 'Нет соединения с сервером.';
+        }
+    };
+}
+
+function initAddMasterForm() {
+    const form = document.getElementById('addMasterForm');
+    if (!form) return;
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const msg   = document.getElementById('mstrMsg');
+        const token = localStorage.getItem('token');
+        const body  = {
+            name:           document.getElementById('mstrName').value.trim(),
+            specialization: document.getElementById('mstrSpec').value.trim(),
+            experience:     document.getElementById('mstrExp').value.trim(),
+            photo:          document.getElementById('mstrPhoto').value.trim() || undefined,
+            service:        document.getElementById('mstrService').value
+        };
+
+        if (!body.name || !body.specialization || !body.service) {
+            msg.style.color = 'red';
+            msg.textContent = 'Заполните имя, специализацию и выберите услугу.';
+            return;
+        }
+
+        try {
+            const res = await fetch('http://localhost:5000/api/masters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                msg.style.color = 'green';
+                msg.textContent = 'Мастер добавлен!';
+                form.reset();
+                await loadAdminMasters();
+            } else {
+                const data = await res.json();
+                msg.style.color = 'red';
+                msg.textContent = data.message || 'Ошибка при добавлении.';
+            }
+        } catch (err) {
+            msg.style.color = 'red';
+            msg.textContent = 'Нет соединения с сервером.';
+        }
+    };
+}
+
+window.deleteService = async (id) => {
+    if (!confirm('Удалить эту услугу?')) return;
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`http://localhost:5000/api/services/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            await loadAdminServices();
+        } else {
+            showModal('Ошибка', 'Не удалось удалить услугу.');
+        }
+    } catch (err) {
+        showModal('Ошибка', 'Нет соединения с сервером.');
+    }
+};
+
+window.deleteMaster = async (id) => {
+    if (!confirm('Удалить этого мастера?')) return;
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`http://localhost:5000/api/masters/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            await loadAdminMasters();
+        } else {
+            showModal('Ошибка', 'Не удалось удалить мастера.');
+        }
+    } catch (err) {
+        showModal('Ошибка', 'Нет соединения с сервером.');
+    }
+};
+
+// Квиз: подбор процедуры
+
 const QUIZ_STEPS = [
     {
         id: 'zone',
@@ -713,13 +964,14 @@ async function router() {
         initLoginLogic();
         initRegLogic(); 
     }
-    // После рендера каталога — загружаем данные
     if (hash === '/catalog') {
         loadCatalog();
     }
-    // После рендера квиза — инициализируем первый шаг
     if (hash === '/quiz') {
         initQuiz();
+    }
+    if (hash === '/admin') {
+        initAdmin();
     }
     updateNav(); 
 }
