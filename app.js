@@ -1,10 +1,80 @@
 // Маршруты SPA
 const routes = {
-    '/': () => `
-        <div class="fade-in">
-            <h1>Главная</h1>
-            <p>Добро пожаловать в Smooth Lab! Профессиональный уход за вашей кожей.</p>
-        </div>`,
+    '/': async () => {
+        try {
+            const [servicesRes, mastersRes] = await Promise.all([
+                fetch('http://localhost:5000/api/services'),
+                fetch('http://localhost:5000/api/masters')
+            ]);
+            const services = await servicesRes.json();
+            const masters  = await mastersRes.json();
+
+            const procedures = [
+                { name: 'Лазерная эпиляция', icon: '✨', desc: 'Современный метод с долгосрочным результатом' },
+                { name: 'Вакcинг',            icon: '🌿', desc: 'Быстро и эффективно для любых зон' },
+                { name: 'Шугаринг',           icon: '🍯', desc: 'Натуральная паста, минимум раздражения' },
+                { name: 'Электроэпиляция',    icon: '⚡', desc: 'Единственный метод с гарантией навсегда' }
+            ];
+
+            return `
+                <div class="fade-in">
+                    <section class="hero">
+                        <h1 class="hero-title">Smooth <span>Lab</span></h1>
+                        <p class="hero-sub">Профессиональное удаление волос — лазер, вакcинг, шугаринг, электроэпиляция</p>
+                        <div class="hero-actions">
+                            <a href="#/quiz" class="btn btn-primary">Подобрать процедуру</a>
+                            <a href="#/catalog" class="btn btn-secondary">Весь каталог</a>
+                        </div>
+                    </section>
+
+                    <section class="home-stats">
+                        <div class="stat-card">
+                            <span class="stat-num">${services.length}</span>
+                            <span class="stat-label">Процедур</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-num">${masters.length}</span>
+                            <span class="stat-label">Специалистов</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-num">4</span>
+                            <span class="stat-label">Метода</span>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h2 class="section-title">Наши методы</h2>
+                        <div class="methods-grid">
+                            ${procedures.map(p => `
+                                <div class="method-card">
+                                    <div class="method-icon">${p.icon}</div>
+                                    <h3>${p.name}</h3>
+                                    <p>${p.desc}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </section>
+
+                    <section class="home-cta">
+                        <h2>Не знаете, что выбрать?</h2>
+                        <p>Пройдите короткий квиз — мы подберём процедуру под ваш тип кожи и бюджет.</p>
+                        <a href="#/quiz" class="btn btn-primary">Пройти квиз</a>
+                    </section>
+                </div>`;
+        } catch (err) {
+            return `
+                <div class="fade-in">
+                    <section class="hero">
+                        <h1 class="hero-title">Smooth <span>Lab</span></h1>
+                        <p class="hero-sub">Профессиональное удаление волос — лазер, вакcинг, шугаринг, электроэпиляция</p>
+                        <div class="hero-actions">
+                            <a href="#/quiz" class="btn btn-primary">Подобрать процедуру</a>
+                            <a href="#/catalog" class="btn btn-secondary">Весь каталог</a>
+                        </div>
+                    </section>
+                </div>`;
+        }
+    },
     
     '/catalog': async () => {
         return `
