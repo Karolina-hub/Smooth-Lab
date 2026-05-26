@@ -24,4 +24,17 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
+// Удалить мастера по ID (только для авторизованных)
+router.delete('/:id', authMiddleware, async (req, res) => {
+    try {
+        const master = await Master.findByIdAndDelete(req.params.id);
+        if (!master) {
+            return res.status(404).json({ message: "Мастер не найден" });
+        }
+        res.json({ message: "Мастер удалён" });
+    } catch (err) {
+        res.status(500).json({ message: "Ошибка сервера" });
+    }
+});
+
 module.exports = router;

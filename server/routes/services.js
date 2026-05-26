@@ -1,11 +1,42 @@
 const express = require('express');
 const router = express.Router();
 const Service = require('../models/Service');
+const Master = require('../models/Master');
+const auth = require('../middleware/authMiddleware');
 
-// Получить список всех услуг
+// Получить список услуг с поддержкой фильтрации и поиска
+// Параметры: ?zone=Лицо&minPrice=100&maxPrice=500&master=<id>&search=название
 router.get('/', async (req, res) => {
     try {
-        const services = await Service.find();
+        const { zone, minPrice, maxPrice, master, search } = req.query;
+        const filter = {};
+
+        // Фильтр по зоне
+        if (zone) filter.zone = zone;
+
+        // Фильтр по диапазону цены
+        if (minPrice || maxPrice) {
+            filter.price = {};
+            if (minPrice) filter.price.$gte = Number(minPrice);
+            if (maxPrice) filter.price.$lte = Number(maxPrice);
+        }
+
+        // Поиск по названию (регистронезависимый)
+        if (search) filter.title = { $regex: search, $options: 'i' };
+
+        let services = await Service.find(filter).sort({ createdAt: -1 });
+
+        // Фильтр по мастеру: оставляем только услуги, у которых есть этот мастер
+        if (master) {
+            const masterDoc = await Master.findById(master);
+            if (masterDoc) {
+                const serviceId = masterDoc.service.toString();
+                services = services.filter(s => s._id.toString() === serviceId);
+            } else {
+                services = [];
+            }
+        }
+
         res.json(services);
     } catch (err) {
         console.error('Ошибка при получении всех услуг:', err);
@@ -32,10 +63,10 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Добавить новую услугу
-router.post('/', async (req, res) => {
+// Добавить новую услугу (только для авторизованных)
+router.post('/', auth, async (req, res) => {
     try {
-        const { title, price, description } = req.body;
+        const { title, price, description, zone } = req.body;
 
         if (!title || !price) {
             return res.status(400).json({ message: "Название и цена обязательны для заполнения" });
@@ -44,7 +75,8 @@ router.post('/', async (req, res) => {
         const newService = new Service({ 
             title, 
             price, 
-            description: description || 'Описание будет добавлено позже.' 
+            description: description || 'Описание будет добавлено позже.',
+            zone: zone || 'Лицо'
         });
 
         await newService.save();
@@ -52,6 +84,20 @@ router.post('/', async (req, res) => {
     } catch (err) {
         console.error('Ошибка при создании услуги:', err);
         res.status(400).json({ message: "Не удалось создать услугу. Проверьте корректность данных." });
+    }
+});
+
+// Удалить услугу по ID (только для авторизованных)
+router.delete('/:id', auth, async (req, res) => {
+    try {
+        const service = await Service.findByIdAndDelete(req.params.id);
+        if (!service) {
+            return res.status(404).json({ message: "Услуга не найдена" });
+        }
+        res.json({ message: "Услуга удалена" });
+    } catch (err) {
+        console.error('Ошибка при удалении услуги:', err);
+        res.status(500).json({ message: "Ошибка сервера" });
     }
 });
 

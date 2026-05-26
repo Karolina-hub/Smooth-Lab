@@ -19,6 +19,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes); 
 app.use('/api/masters', require('./routes/masters'));
+app.use('/api/favorites', require('./routes/favorites'));
 
 // Проверочный маршрут
 app.get('/', (req, res) => {
