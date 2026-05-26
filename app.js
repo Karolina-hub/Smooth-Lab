@@ -7,19 +7,46 @@ const routes = {
         </div>`,
     
     '/catalog': async () => {
-        try {
-            const res = await fetch('http://localhost:5000/api/services');
-            const services = await res.json();
-            return `
-                <div class="fade-in">
-                    <h1>Каталог услуг</h1>
-                    <div id="servicesList" class="services-grid">
-                        ${services.length > 0 ? renderServices(services) : '<p>Услуг пока нет.</p>'}
+        return `
+            <div class="fade-in">
+                <h1>Каталог услуг</h1>
+
+                <div class="filters-panel">
+                    <div class="filter-group">
+                        <label>Зона</label>
+                        <select id="filterZone">
+                            <option value="">Все зоны</option>
+                            <option value="Лицо">Лицо</option>
+                            <option value="Тело">Тело</option>
+                            <option value="Руки">Руки</option>
+                            <option value="Ноги">Ноги</option>
+                            <option value="Волосы">Волосы</option>
+                        </select>
                     </div>
-                </div>`;
-        } catch (err) {
-            return `<h1>Ошибка загрузки каталога</h1>`;
-        }
+                    <div class="filter-group">
+                        <label>Цена от</label>
+                        <input type="number" id="filterMinPrice" placeholder="0" min="0">
+                    </div>
+                    <div class="filter-group">
+                        <label>Цена до</label>
+                        <input type="number" id="filterMaxPrice" placeholder="9999" min="0">
+                    </div>
+                    <div class="filter-group">
+                        <label>Специалист</label>
+                        <select id="filterMaster">
+                            <option value="">Все специалисты</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="applyFilters()">Найти</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">Сбросить</button>
+                </div>
+
+                <div id="catalogSpinner" class="spinner-wrap">
+                    <div class="spinner"></div>
+                </div>
+                <div id="servicesList" class="services-grid" style="display:none;"></div>
+                <p id="catalogEmpty" style="display:none; text-align:center; color:#8a5a65;">Услуги не найдены.</p>
+            </div>`;
     },
 
     '/search': () => `
@@ -92,23 +119,177 @@ const routes = {
         }
     },
 
-    '/favorites': () => `
-        <div class="fade-in">
-            <h1>Мои записи</h1>
-            <p>Здесь будут отображаться услуги, на которые вы записались.</p>
-            <div id="favoritesList" class="services-grid"></div>
-        </div>`
+    '/favorites': async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return `<h1>Загрузка...</h1>`;
+        try {
+            const res = await fetch('http://localhost:5000/api/favorites', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error();
+            const services = await res.json();
+            return `
+                <div class="fade-in">
+                    <h1>Избранное</h1>
+                    ${services.length === 0
+                        ? `<div class="card" style="text-align:center;">
+                               <p>Вы ещё не добавили ни одной услуги в избранное.</p>
+                               <a href="#/catalog" class="btn btn-primary">Перейти в каталог</a>
+                           </div>`
+                        : `<div class="services-grid">${renderServices(services, [])}</div>`
+                    }
+                </div>`;
+        } catch (err) {
+            return `<div class="fade-in"><h1>Избранное</h1><p class="error-text">Не удалось загрузить избранное.</p></div>`;
+        }
+    }
 };
 
-function renderServices(items) {
-    return items.map(s => `
-        <div class="card">
+function renderServices(items, favoriteIds = []) {
+    return items.map(s => {
+        const isFav = favoriteIds.includes(s._id);
+        return `
+        <div class="card" id="card-${s._id}">
+            <div class="card-zone-badge">${s.zone || 'Лицо'}</div>
             <h3>${s.title}</h3>
-            <p>Цена: ${s.price} руб.</p>
-            <a href="#/catalog/${s._id}" class="btn-link">Подробнее</a>
-        </div>
-    `).join('');
+            <p class="card-price">${s.price} руб.</p>
+            <div class="card-actions">
+                <a href="#/catalog/${s._id}" class="btn btn-primary">Подробнее</a>
+                <button
+                    class="btn-like ${isFav ? 'liked' : ''}"
+                    onclick="toggleFavorite('${s._id}', this)"
+                    title="${isFav ? 'Убрать из избранного' : 'В избранное'}">
+                    ${isFav ? '❤️' : '🤍'}
+                </button>
+            </div>
+        </div>`;
+    }).join('');
 }
+
+// ─── Каталог: загрузка, фильтры, лайки ───────────────────────────────────────
+
+// Загружает услуги с учётом текущих фильтров и отрисовывает их
+async function loadCatalog(params = {}) {
+    const spinner = document.getElementById('catalogSpinner');
+    const list = document.getElementById('servicesList');
+    const empty = document.getElementById('catalogEmpty');
+    if (!list) return;
+
+    if (spinner) spinner.style.display = 'flex';
+    list.style.display = 'none';
+    if (empty) empty.style.display = 'none';
+
+    try {
+        // Строим строку запроса из переданных параметров
+        const query = new URLSearchParams();
+        if (params.zone)     query.set('zone', params.zone);
+        if (params.minPrice) query.set('minPrice', params.minPrice);
+        if (params.maxPrice) query.set('maxPrice', params.maxPrice);
+        if (params.master)   query.set('master', params.master);
+
+        const [servicesRes, mastersRes] = await Promise.all([
+            fetch(`http://localhost:5000/api/services?${query}`),
+            fetch('http://localhost:5000/api/masters')
+        ]);
+
+        if (!servicesRes.ok) throw new Error('Ошибка загрузки услуг');
+        const services = await servicesRes.json();
+        const masters  = await mastersRes.json();
+
+        // Заполняем выпадающий список специалистов (только при первой загрузке)
+        const masterSelect = document.getElementById('filterMaster');
+        if (masterSelect && masterSelect.options.length === 1) {
+            masters.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m._id;
+                opt.textContent = m.name;
+                masterSelect.appendChild(opt);
+            });
+        }
+
+        // Получаем ID избранных услуг (если пользователь авторизован)
+        let favoriteIds = [];
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const favRes = await fetch('http://localhost:5000/api/favorites/ids', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (favRes.ok) favoriteIds = await favRes.json();
+            } catch (_) { /* не критично */ }
+        }
+
+        if (spinner) spinner.style.display = 'none';
+
+        if (services.length === 0) {
+            if (empty) empty.style.display = 'block';
+            return;
+        }
+
+        list.innerHTML = renderServices(services, favoriteIds);
+        list.style.display = 'grid';
+
+    } catch (err) {
+        if (spinner) spinner.style.display = 'none';
+        if (list) {
+            list.innerHTML = `<p class="error-text" style="grid-column:1/-1;">Не удалось загрузить каталог. Проверьте соединение.</p>`;
+            list.style.display = 'grid';
+        }
+    }
+}
+
+// Читает значения фильтров из DOM и запускает загрузку
+window.applyFilters = () => {
+    const params = {
+        zone:     document.getElementById('filterZone')?.value || '',
+        minPrice: document.getElementById('filterMinPrice')?.value || '',
+        maxPrice: document.getElementById('filterMaxPrice')?.value || '',
+        master:   document.getElementById('filterMaster')?.value || ''
+    };
+    loadCatalog(params);
+};
+
+// Сбрасывает все фильтры и перезагружает каталог
+window.resetFilters = () => {
+    const ids = ['filterZone', 'filterMinPrice', 'filterMaxPrice', 'filterMaster'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    loadCatalog();
+};
+
+// Переключает лайк на услуге
+window.toggleFavorite = async (serviceId, btn) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showModal('Внимание', 'Войдите в аккаунт, чтобы добавлять услуги в избранное.');
+        return;
+    }
+
+    const isLiked = btn.classList.contains('liked');
+    const method  = isLiked ? 'DELETE' : 'POST';
+
+    try {
+        const res = await fetch(`http://localhost:5000/api/favorites/${serviceId}`, {
+            method,
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            btn.classList.toggle('liked', !isLiked);
+            btn.textContent = isLiked ? '🤍' : '❤️';
+            btn.title = isLiked ? 'В избранное' : 'Убрать из избранного';
+        } else {
+            const data = await res.json();
+            showModal('Ошибка', data.message || 'Не удалось обновить избранное.');
+        }
+    } catch (err) {
+        showModal('Ошибка', 'Нет соединения с сервером.');
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function updateNav() {
     const token = localStorage.getItem('token');
@@ -139,10 +320,9 @@ window.showModal = (title, text) => {
 window.handleSearch = async (query) => {
     if (query.length < 2) return;
     try {
-        const res = await fetch('http://localhost:5000/api/services');
+        const res = await fetch(`http://localhost:5000/api/services?search=${encodeURIComponent(query)}`);
         const services = await res.json();
-        const results = services.filter(s => s.title.toLowerCase().includes(query.toLowerCase()));
-        document.getElementById('searchResults').innerHTML = renderServices(results);
+        document.getElementById('searchResults').innerHTML = renderServices(services, []);
     } catch (err) { console.error(err); }
 };
 
@@ -371,12 +551,16 @@ async function router() {
         } catch (err) { console.error(err); }
     }
 
-    const viewFunc = routes[hash] || (() => '<h1>404</h1>');
+    const viewFunc = routes[hash] || (() => '<div class="fade-in"><h1>404 — Страница не найдена</h1><p>Такой страницы не существует.</p><a href="#/" class="btn btn-primary" style="margin-top:20px;">На главную</a></div>');
     app.innerHTML = await viewFunc();
 
     if (hash === '/auth') {
         initLoginLogic();
         initRegLogic(); 
+    }
+    // После рендера каталога — загружаем данные
+    if (hash === '/catalog') {
+        loadCatalog();
     }
     updateNav(); 
 }
