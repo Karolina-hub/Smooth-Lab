@@ -20,7 +20,14 @@ router.get('/', async (req, res) => {
             if (maxPrice) filter.price.$lte = Number(maxPrice);
         }
 
-        if (search) filter.title = { $regex: search, $options: 'i' };
+        if (search) {
+            filter.$or = [
+                { title:  { $regex: search, $options: 'i' } },
+                { method: { $regex: search, $options: 'i' } }
+            ];
+            // В поиске показываем только зоны, не тарифы
+            filter.isZone = true;
+        }
 
         let services = await Service.find(filter).sort({ price: 1 });
 

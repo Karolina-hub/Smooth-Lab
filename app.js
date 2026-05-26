@@ -103,8 +103,8 @@ const routes = {
     '/search': () => `
         <div class="fade-in">
             <h1>Поиск услуг</h1>
-            <input type="text" id="searchInput" placeholder="Введите название..." oninput="handleSearch(this.value)">
-            <div id="searchResults" class="services-grid" style="margin-top: 20px;"></div>
+            <input type="text" id="searchInput" placeholder="Введите название или метод..." oninput="debouncedSearch(this.value)" autocomplete="off">
+            <div id="searchResults" class="services-grid" style="margin-top:20px;"></div>
         </div>`,
 
     '/auth': () => `
@@ -259,11 +259,10 @@ function renderServices(items, favoriteIds = []) {
         const isFav = favoriteIds.includes(s._id);
         return `
         <div class="card" id="card-${s._id}">
-            <div class="card-zone-badge">${s.zone || 'Лицо'}</div>
             <h3>${s.title}</h3>
+            <p style="font-size:13px; color:#8a5a65; margin:2px 0 8px;">${s.method || ''}</p>
             <p class="card-price">${s.price} руб.</p>
             <div class="card-actions">
-                <a href="#/catalog/${s._id}" class="btn btn-primary">Подробнее</a>
                 <button
                     class="btn-like ${isFav ? 'liked' : ''}"
                     onclick="toggleFavorite('${s._id}', this)"
@@ -436,13 +435,52 @@ window.showModal = (title, text) => {
     document.body.appendChild(modal);
 };
 
+let searchTimer = null;
+
+window.debouncedSearch = (query) => {
+    clearTimeout(searchTimer);
+    const results = document.getElementById('searchResults');
+    if (!results) return;
+
+    const q = query.trim();
+    if (q.length < 2) {
+        results.innerHTML = '';
+        return;
+    }
+
+    results.innerHTML = '<div class="spinner-wrap" style="grid-column:1/-1;"><div class="spinner"></div></div>';
+    searchTimer = setTimeout(() => handleSearch(q), 400);
+};
+
 window.handleSearch = async (query) => {
-    if (query.length < 2) return;
+    const results = document.getElementById('searchResults');
+    if (!results) return;
+
     try {
         const res = await fetch(`http://localhost:5000/api/services?search=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error();
         const services = await res.json();
-        document.getElementById('searchResults').innerHTML = renderServices(services, []);
-    } catch (err) { console.error(err); }
+
+        if (services.length === 0) {
+            results.innerHTML = '<p style="color:#8a5a65; grid-column:1/-1;">Ничего не найдено.</p>';
+            return;
+        }
+
+        let favoriteIds = [];
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const favRes = await fetch('http://localhost:5000/api/favorites/ids', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (favRes.ok) favoriteIds = await favRes.json();
+            } catch (_) {}
+        }
+
+        results.innerHTML = renderServices(services, favoriteIds);
+    } catch (err) {
+        results.innerHTML = '<p class="error-text" style="grid-column:1/-1;">Ошибка при поиске. Проверьте соединение.</p>';
+    }
 };
 
 window.logout = () => {
@@ -950,34 +988,34 @@ async function showQuizResults() {
     const methodInfo = {
         'Лазер': {
             title: 'Лазерная эпиляция',
-            desc: 'Стойкое сокращение волос на 80–95% после курса. Идеально для тёмных волос. Быстро — зона подмышек всего 3 минуты.',
-            icon: '✨',
-            search: 'Лазер'
+            key:   'Лазерная эпиляция',
+            desc:  'Стойкое сокращение волос на 80–95% после курса. Идеально для тёмных волос. Быстро — зона подмышек всего 3 минуты.',
+            icon:  '✨'
         },
         'Электроэпиляция': {
             title: 'Электроэпиляция',
-            desc: 'Единственный метод со 100% перманентным результатом. Работает на любом цвете волос, включая седые и пушковые.',
-            icon: '⚡',
-            search: 'Электроэпиляция'
+            key:   'Электроэпиляция',
+            desc:  'Единственный метод со 100% перманентным результатом. Работает на любом цвете волос, включая седые и пушковые.',
+            icon:  '⚡'
         },
         'Шугаринг': {
             title: 'Шугаринг',
-            desc: 'Натуральная паста, минимум боли и раздражения. Подходит для чувствительной кожи. Гладкость на 2–4 недели.',
-            icon: '🍯',
-            search: 'Шугаринг'
+            key:   'Шугаринг',
+            desc:  'Натуральная паста, минимум боли и раздражения. Подходит для чувствительной кожи. Гладкость на 2–4 недели.',
+            icon:  '🍯'
         },
         'Вакcинг': {
             title: 'Вакcинг',
-            desc: 'Быстрое удаление воском для больших зон. Гладкость на 2–4 недели. Подходит для жёстких волос.',
-            icon: '🌿',
-            search: 'Вакcинг'
+            key:   'Вакcинг',
+            desc:  'Быстрое удаление воском для больших зон. Гладкость на 2–4 недели. Подходит для жёстких волос.',
+            icon:  '🌿'
         }
     };
 
     const info = methodInfo[method];
 
     try {
-        const res = await fetch(`http://localhost:5000/api/services?search=${encodeURIComponent(info.search)}`);
+        const res = await fetch(`http://localhost:5000/api/services?method=${encodeURIComponent(info.key)}&isZone=true`);
         const services = await res.json();
 
         container.innerHTML = `
@@ -996,7 +1034,10 @@ async function showQuizResults() {
                     <div class="services-grid">${renderServices(services, [])}</div>
                 ` : '<p style="color:#8a5a65;">Процедуры этого метода скоро появятся в каталоге.</p>'}
 
-                <button class="btn btn-secondary" onclick="initQuiz()" style="margin-top:30px;">← Пройти заново</button>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:30px;">
+                    <a href="#/catalog/${encodeURIComponent(info.key)}" class="btn btn-primary">Перейти к методу →</a>
+                    <button class="btn btn-secondary" onclick="initQuiz()">← Пройти заново</button>
+                </div>
             </div>`;
 
     } catch (err) {
@@ -1056,7 +1097,7 @@ async function router() {
                                     <span class="price-zone">${s.title}</span>
                                     <span class="price-amount">${s.price} руб.</span>
                                 </div>`).join('')
-                            : '<p style="color:#8a5a65;">Прайс скоро появится.</p>'
+                            : '<p style="color:#8a5a65; padding:20px;">Прайс скоро появится.</p>'
                         }
                     </div>
 

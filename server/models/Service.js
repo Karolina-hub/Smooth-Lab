@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-const ZONES    = ['Лицо', 'Тело', 'Руки', 'Ноги'];
-const METHODS  = ['Лазерная эпиляция', 'Электроэпиляция', 'Шугаринг', 'Вакcинг'];
+const ZONES   = ['Лицо', 'Тело', 'Руки', 'Ноги'];
+const METHODS = ['Лазерная эпиляция', 'Электроэпиляция', 'Шугаринг', 'Вакcинг'];
 
 const serviceSchema = new mongoose.Schema({
     title: {
@@ -20,11 +20,15 @@ const serviceSchema = new mongoose.Schema({
         enum: ZONES,
         default: 'Тело'
     },
-    // Метод удаления волос — используется для группировки в каталоге
     method: {
         type: String,
         enum: METHODS,
         default: 'Лазерная эпиляция'
+    },
+    // true — это зона (голени, бёдра и т.д.), false — тариф (игла, час работы)
+    isZone: {
+        type: Boolean,
+        default: true
     }
 }, {
     timestamps: true
