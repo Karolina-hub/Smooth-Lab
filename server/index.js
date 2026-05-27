@@ -12,7 +12,14 @@ const serviceRoutes = require('./routes/services');
 const app = express();
 
 // Настройки Middleware 
-app.use(cors());
+const corsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: corsOrigins.length ? corsOrigins : true
+}));
 app.use(express.json());
 
 // Маршруты
@@ -25,15 +32,18 @@ app.use('/api/favorites', require('./routes/favorites'));
 app.get('/', (req, res) => {
     res.send('Сервер Smooth Lab работает');
 });
+app.get('/api/health', (req, res) => {
+    res.json({ ok: true, service: 'smooth-lab-api' });
+});
 
 const PORT = process.env.PORT || 5000;
 
 // Подключение к базе
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
-    console.log('УСПЕХ: Подключено к локальной MongoDB');
+    console.log('УСПЕХ: Подключено к MongoDB');
     app.listen(PORT, () => {
-      console.log(`Сервер запущен на http://localhost:${PORT}`);
+      console.log(`Сервер запущен на порту ${PORT}`);
     });
   })
   .catch((err) => {

@@ -3,8 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="api-url" content="http://localhost:5000">
+    <meta name="api-url-prod" content="https://smooth-lab-api.onrender.com">
     <title>Smooth Lab | Лабораторная №2</title>
     <link rel="stylesheet" href="style.css">
+    <script>
+        (function () {
+            var localApi = document.querySelector('meta[name="api-url"]')?.content || 'http://localhost:5000';
+            var prodApi = document.querySelector('meta[name="api-url-prod"]')?.content || localApi;
+            var isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+            window.__API_URL__ = isLocalhost ? localApi : prodApi;
+        })();
+    </script>
 </head>
 <body>
     <header class="header">
@@ -15,6 +25,7 @@
             <a href="#/">Главная</a>
             <a href="#/catalog">Каталог</a>
             <a href="#/search">Поиск</a>
+            <span id="nav-user" style="display:none; color:#8a5a65; font-weight:bold;"></span>
             <a href="#/quiz" id="nav-quiz" style="display:none;">Квиз</a>
             <a href="#/favorites" id="nav-favorites" style="display: none;">Избранное</a>
             <a href="#/profile" id="nav-profile" style="display: none;">Профиль</a>

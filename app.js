@@ -1,3 +1,10 @@
+// Базовый URL API: можно задать через window.__API_URL__ или meta[name="api-url"]
+const API_URL = (() => {
+    const fromWindow = window.__API_URL__;
+    const fromMeta = document.querySelector('meta[name="api-url"]')?.content;
+    return (fromWindow || fromMeta || 'http://localhost:5000').replace(/\/$/, '');
+})();
+
 // Глобальный перехватчик сетевых ошибок
 const _originalFetch = window.fetch;
 window.fetch = async (...args) => {
@@ -20,8 +27,8 @@ const routes = {
     '/': async () => {
         try {
             const [servicesRes, mastersRes] = await Promise.all([
-                fetch('http://localhost:5000/api/services'),
-                fetch('http://localhost:5000/api/masters')
+                fetch(`${API_URL}/api/services`),
+                fetch(`${API_URL}/api/masters`)
             ]);
             const services = await servicesRes.json();
             const masters  = await mastersRes.json();
@@ -163,12 +170,13 @@ const routes = {
         const token = localStorage.getItem('token');
         if (!token) return `<h1>Загрузка...</h1>`;
         try {
-            const res = await fetch('http://localhost:5000/api/auth/me', {
+            const res = await fetch(`${API_URL}/api/auth/me`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error("Ошибка доступа");
             const user = await res.json();
+            if (user?.name) localStorage.setItem('userName', user.name);
             return `
             <div class="fade-in">
                 <h1>Личный кабинет</h1>
@@ -249,7 +257,7 @@ const routes = {
         const token = localStorage.getItem('token');
         if (!token) return `<h1>Загрузка...</h1>`;
         try {
-            const res = await fetch('http://localhost:5000/api/favorites', {
+            const res = await fetch(`${API_URL}/api/favorites`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error();
@@ -313,8 +321,8 @@ async function loadCatalog(params = {}) {
         if (params.master)   query.set('master', params.master);
 
         const [servicesRes, mastersRes] = await Promise.all([
-            fetch(`http://localhost:5000/api/services?${query}`),
-            fetch('http://localhost:5000/api/masters')
+            fetch(`${API_URL}/api/services?${query}`),
+            fetch(`${API_URL}/api/masters`)
         ]);
 
         if (!servicesRes.ok) throw new Error('Ошибка загрузки услуг');
@@ -337,7 +345,7 @@ async function loadCatalog(params = {}) {
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const favRes = await fetch('http://localhost:5000/api/favorites/ids', {
+                const favRes = await fetch(`${API_URL}/api/favorites/ids`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (favRes.ok) favoriteIds = await favRes.json();
@@ -396,7 +404,7 @@ window.toggleFavorite = async (serviceId, btn) => {
     const method  = isLiked ? 'DELETE' : 'POST';
 
     try {
-        const res = await fetch(`http://localhost:5000/api/favorites/${serviceId}`, {
+        const res = await fetch(`${API_URL}/api/favorites/${serviceId}`, {
             method,
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -406,8 +414,8 @@ window.toggleFavorite = async (serviceId, btn) => {
             btn.textContent = isLiked ? '🤍' : '❤️';
             btn.title = isLiked ? 'В избранное' : 'Убрать из избранного';
         } else {
-            const data = await res.json();
-            showModal('Ошибка', data.message || 'Не удалось обновить избранное.');
+            const errorText = await getApiErrorMessage(res, 'Не удалось обновить избранное.');
+            showModal('Ошибка', errorText);
         }
     } catch (err) {
         showModal('Ошибка', 'Нет соединения с сервером.');
@@ -416,6 +424,7 @@ window.toggleFavorite = async (serviceId, btn) => {
 
 function updateNav() {
     const token = localStorage.getItem('token');
+    const userName = localStorage.getItem('userName');
     const hash  = window.location.hash.slice(1) || '/';
 
     const navItems = {
@@ -428,6 +437,11 @@ function updateNav() {
     for (const [id, show] of Object.entries(navItems)) {
         const el = document.getElementById(id);
         if (el) el.style.display = show ? 'block' : 'none';
+    }
+    const userLabel = document.getElementById('nav-user');
+    if (userLabel) {
+        userLabel.style.display = token && userName ? 'block' : 'none';
+        userLabel.textContent = userName ? `Привет, ${userName}` : '';
     }
 
     // Подсвечиваем активный пункт меню
@@ -452,6 +466,15 @@ window.showModal = (title, text) => {
     document.body.appendChild(modal);
 };
 
+async function getApiErrorMessage(res, fallback = 'Произошла ошибка') {
+    try {
+        const data = await res.json();
+        return data.message || data.error || fallback;
+    } catch (_) {
+        return fallback;
+    }
+}
+
 let searchTimer = null;
 
 window.debouncedSearch = (query) => {
@@ -474,7 +497,7 @@ window.handleSearch = async (query) => {
     if (!results) return;
 
     try {
-        const res = await fetch(`http://localhost:5000/api/services?search=${encodeURIComponent(query)}`);
+        const res = await fetch(`${API_URL}/api/services?search=${encodeURIComponent(query)}`);
         if (!res.ok) throw new Error();
         const services = await res.json();
 
@@ -487,7 +510,7 @@ window.handleSearch = async (query) => {
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const favRes = await fetch('http://localhost:5000/api/favorites/ids', {
+                const favRes = await fetch(`${API_URL}/api/favorites/ids`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (favRes.ok) favoriteIds = await favRes.json();
@@ -536,7 +559,7 @@ window.forgotPassword = async () => {
 
     try {
         // Получаем вопрос от сервера
-        const res = await fetch(`http://localhost:5000/api/auth/get-question?email=${email}`);
+        const res = await fetch(`${API_URL}/api/auth/get-question?email=${email}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -567,7 +590,7 @@ window.submitRecovery = async () => {
     }
 
     try {
-        const verifyRes = await fetch('http://localhost:5000/api/auth/verify-secret', {
+        const verifyRes = await fetch(`${API_URL}/api/auth/verify-secret`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, answer })
@@ -577,6 +600,7 @@ window.submitRecovery = async () => {
 
         if (verifyRes.ok) {
             AuthState.setToken(verifyData.token);
+            if (verifyData.user?.name) localStorage.setItem('userName', verifyData.user.name);
             closeModal();
             window.location.hash = '#/profile';
             showModal("Успех", "Вы успешно вошли в аккаунт!");
@@ -600,20 +624,21 @@ function initLoginLogic() {
             password: document.getElementById('loginPassword').value.trim()
         };
         try {
-            const res = await fetch('http://localhost:5000/api/auth/login', {
+            const res = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(loginData)
             });
-            const data = await res.json();
             if (res.ok) {
+                const data = await res.json();
                 AuthState.setToken(data.token);
+                if (data.user?.name) localStorage.setItem('userName', data.user.name);
                 msg.style.color = "green";
                 msg.innerText = "Успешный вход!";
                 setTimeout(() => window.location.hash = '#/profile', 1000);
             } else {
                 msg.style.color = "red";
-                msg.innerText = data.message;
+                msg.innerText = await getApiErrorMessage(res, 'Ошибка авторизации');
             }
         } catch (err) { msg.innerText = "Ошибка сервера"; }
     };
@@ -659,7 +684,7 @@ function initRegLogic() {
         };
 
         try {
-            const res = await fetch('http://localhost:5000/api/auth/register', {
+            const res = await fetch(`${API_URL}/api/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData)
@@ -669,8 +694,7 @@ function initRegLogic() {
                 msg.innerText = "Успех! Теперь войдите.";
                 setTimeout(() => switchAuth('login'), 1500);
             } else {
-                const data = await res.json();
-                msg.innerText = data.message;
+                msg.innerText = await getApiErrorMessage(res, 'Не удалось зарегистрироваться');
             }
         } catch (err) { msg.innerText = "Ошибка сервера"; }
     };
@@ -695,7 +719,7 @@ async function loadAdminServices() {
     const container = document.getElementById('adminServicesList');
     if (!container) return;
     try {
-        const res = await fetch('http://localhost:5000/api/services');
+        const res = await fetch(`${API_URL}/api/services`);
         const services = await res.json();
         if (services.length === 0) {
             container.innerHTML = '<p style="color:#8a5a65;">Услуг пока нет.</p>';
@@ -721,8 +745,8 @@ async function loadAdminMasters() {
     if (!container) return;
     try {
         const [mastersRes, servicesRes] = await Promise.all([
-            fetch('http://localhost:5000/api/masters'),
-            fetch('http://localhost:5000/api/services')
+            fetch(`${API_URL}/api/masters`),
+            fetch(`${API_URL}/api/services`)
         ]);
         const masters  = await mastersRes.json();
         const services = await servicesRes.json();
@@ -776,7 +800,7 @@ function initAddServiceForm() {
         }
 
         try {
-            const res = await fetch('http://localhost:5000/api/services', {
+            const res = await fetch(`${API_URL}/api/services`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(body)
@@ -787,9 +811,8 @@ function initAddServiceForm() {
                 form.reset();
                 await loadAdminServices();
             } else {
-                const data = await res.json();
                 msg.style.color = 'red';
-                msg.textContent = data.message || 'Ошибка при добавлении.';
+                msg.textContent = await getApiErrorMessage(res, 'Ошибка при добавлении.');
             }
         } catch (err) {
             msg.style.color = 'red';
@@ -820,7 +843,7 @@ function initAddMasterForm() {
         }
 
         try {
-            const res = await fetch('http://localhost:5000/api/masters', {
+            const res = await fetch(`${API_URL}/api/masters`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(body)
@@ -831,9 +854,8 @@ function initAddMasterForm() {
                 form.reset();
                 await loadAdminMasters();
             } else {
-                const data = await res.json();
                 msg.style.color = 'red';
-                msg.textContent = data.message || 'Ошибка при добавлении.';
+                msg.textContent = await getApiErrorMessage(res, 'Ошибка при добавлении.');
             }
         } catch (err) {
             msg.style.color = 'red';
@@ -846,7 +868,7 @@ window.deleteService = async (id) => {
     if (!confirm('Удалить эту услугу?')) return;
     const token = localStorage.getItem('token');
     try {
-        const res = await fetch(`http://localhost:5000/api/services/${id}`, {
+        const res = await fetch(`${API_URL}/api/services/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -864,7 +886,7 @@ window.deleteMaster = async (id) => {
     if (!confirm('Удалить этого мастера?')) return;
     const token = localStorage.getItem('token');
     try {
-        const res = await fetch(`http://localhost:5000/api/masters/${id}`, {
+        const res = await fetch(`${API_URL}/api/masters/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -1029,7 +1051,7 @@ async function showQuizResults() {
     const info = methodInfo[method];
 
     try {
-        const res = await fetch(`http://localhost:5000/api/services?method=${encodeURIComponent(info.key)}&isZone=true`);
+        const res = await fetch(`${API_URL}/api/services?method=${encodeURIComponent(info.key)}&isZone=true`);
         const services = await res.json();
 
         container.innerHTML = `
@@ -1080,6 +1102,21 @@ const AuthState = {
     }
 };
 
+const MethodSortState = {};
+
+function getMethodSortConfig(methodName) {
+    const value = MethodSortState[methodName] || 'price-asc';
+    if (value === 'price-desc') return { sortBy: 'price', order: 'desc', value };
+    if (value === 'title-asc') return { sortBy: 'title', order: 'asc', value };
+    if (value === 'date-desc') return { sortBy: 'createdAt', order: 'desc', value };
+    return { sortBy: 'price', order: 'asc', value: 'price-asc' };
+}
+
+window.setMethodSort = (methodName, value) => {
+    MethodSortState[methodName] = value;
+    router();
+};
+
 // Загружает следующую порцию зон в прайс-таблицу
 window.loadMoreZones = async (methodName, btn) => {
     const skip  = parseInt(btn.dataset.skip) || 0;
@@ -1090,8 +1127,9 @@ window.loadMoreZones = async (methodName, btn) => {
     btn.textContent = 'Загрузка...';
 
     try {
+        const { sortBy, order } = getMethodSortConfig(methodName);
         const res = await fetch(
-            `http://localhost:5000/api/services?method=${encodeURIComponent(methodName)}&limit=5&skip=${skip}`
+            `${API_URL}/api/services?method=${encodeURIComponent(methodName)}&isZone=true&limit=5&skip=${skip}&sortBy=${sortBy}&order=${order}`
         );
         const { items, total } = await res.json();
 
@@ -1132,12 +1170,13 @@ async function router() {
     if (hash.startsWith('/catalog/')) {
         const methodName = decodeURIComponent(hash.split('/catalog/')[1]);
         try {
+            const { sortBy, order, value: selectedSort } = getMethodSortConfig(methodName);
             const spinner = `<div class="spinner-wrap"><div class="spinner"></div></div>`;
             app.innerHTML = `<div class="fade-in"><h1>${methodName}</h1>${spinner}</div>`;
 
             const [servicesRes, mastersRes] = await Promise.all([
-                fetch(`http://localhost:5000/api/services?method=${encodeURIComponent(methodName)}&limit=5&skip=0`),
-                fetch('http://localhost:5000/api/masters')
+                fetch(`${API_URL}/api/services?method=${encodeURIComponent(methodName)}&isZone=true&limit=5&skip=0&sortBy=${sortBy}&order=${order}`),
+                fetch(`${API_URL}/api/masters`)
             ]);
             const { items: services, total } = await servicesRes.json();
             const masters  = await mastersRes.json();
@@ -1159,6 +1198,17 @@ async function router() {
                     <h1>${methodIcons[methodName] || ''} ${methodName}</h1>
 
                     <h2 style="margin:30px 0 15px;">Зоны и цены</h2>
+                    <div class="filters-panel" style="margin-bottom:12px; max-width:600px;">
+                        <div class="filter-group">
+                            <label for="methodSort">Сортировка</label>
+                            <select id="methodSort" onchange="setMethodSort('${methodName}', this.value)">
+                                <option value="price-asc" ${selectedSort === 'price-asc' ? 'selected' : ''}>Цена: по возрастанию</option>
+                                <option value="price-desc" ${selectedSort === 'price-desc' ? 'selected' : ''}>Цена: по убыванию</option>
+                                <option value="title-asc" ${selectedSort === 'title-asc' ? 'selected' : ''}>Название: А-Я</option>
+                                <option value="date-desc" ${selectedSort === 'date-desc' ? 'selected' : ''}>Сначала новые</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="price-table" id="priceTable">
                         ${services.length > 0
                             ? services.map(s => `

@@ -8,7 +8,7 @@ const auth = require('../middleware/authMiddleware');
 // Параметры: ?zone=Лицо&minPrice=100&maxPrice=500&master=<id>&search=название&method=Лазерная эпиляция
 router.get('/', async (req, res) => {
     try {
-        const { zone, minPrice, maxPrice, master, search, method } = req.query;
+        const { zone, minPrice, maxPrice, master, search, method, isZone, sortBy, order } = req.query;
         const filter = {};
 
         if (zone)   filter.zone   = zone;
@@ -29,7 +29,14 @@ router.get('/', async (req, res) => {
             filter.isZone = true;
         }
 
-        let services = await Service.find(filter).sort({ price: 1 });
+        if (isZone === 'true') filter.isZone = true;
+        if (isZone === 'false') filter.isZone = false;
+
+        const allowedSortFields = ['price', 'title', 'createdAt'];
+        const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'price';
+        const sortOrder = order === 'desc' ? -1 : 1;
+
+        let services = await Service.find(filter).sort({ [sortField]: sortOrder });
 
         if (master) {
             const masterDoc = await Master.findById(master);
