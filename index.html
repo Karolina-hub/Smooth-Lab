@@ -3,34 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="api-url" content="http://localhost:5000">
+    <meta name="api-url" content="https://smooth-lab-api.onrender.com">
     <meta name="api-url-prod" content="https://smooth-lab-api.onrender.com">
-    <title>Smooth Lab | Лабораторная №2</title>
+    <meta name="api-url-local" content="http://localhost:5000">
+    <title>Smooth Lab</title>
     <link rel="stylesheet" href="style.css">
     <script>
         (function () {
-            var localApi = document.querySelector('meta[name="api-url"]')?.content || 'http://localhost:5000';
-            var prodApi = document.querySelector('meta[name="api-url-prod"]')?.content || localApi;
-            var isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-            window.__API_URL__ = isLocalhost ? localApi : prodApi;
+            var defaultApi = document.querySelector('meta[name="api-url"]')?.content || 'https://smooth-lab-api.onrender.com';
+            var prodApi = document.querySelector('meta[name="api-url-prod"]')?.content || defaultApi;
+            var localApi = document.querySelector('meta[name="api-url-local"]')?.content || 'http://localhost:5000';
+            var forceLocal = window.location.search.includes('useLocalApi=1');
+            window.__API_URL__ = forceLocal ? localApi : prodApi;
         })();
     </script>
 </head>
 <body>
     <header class="header">
-        <div class="logo" onclick="location.hash = '#/'" style="cursor: pointer;">
+        <div class="logo" onclick="navigateTo('/')" style="cursor: pointer;">
             SMOOTH<span>LAB</span>
         </div>
         <nav class="nav">
-            <a href="#/">Главная</a>
-            <a href="#/catalog">Каталог</a>
-            <a href="#/search">Поиск</a>
+            <a href="/">Главная</a>
+            <a href="/catalog">Каталог</a>
+            <a href="/search">Поиск</a>
             <span id="nav-user" style="display:none; color:#8a5a65; font-weight:bold;"></span>
-            <a href="#/quiz" id="nav-quiz" style="display:none;">Квиз</a>
-            <a href="#/favorites" id="nav-favorites" style="display: none;">Избранное</a>
-            <a href="#/profile" id="nav-profile" style="display: none;">Профиль</a>
-            <a href="#/admin" id="nav-admin" style="display: none;">Админ</a> 
-            <a href="#/auth" id="nav-auth" class="btn-login">Войти / Регистрация</a>
+            <a href="/quiz" id="nav-quiz" style="display:none;">Квиз</a>
+            <a href="/favorites" id="nav-favorites" style="display: none;">Избранное</a>
+            <a href="/profile" id="nav-profile" style="display: none;">Профиль</a>
+            <a href="/admin" id="nav-admin" style="display: none;">Админ</a>
+            <a href="javascript:void(0)" id="nav-logout" style="display: none;" onclick="logout()">Выйти</a>
+            <a href="/auth" id="nav-auth" class="btn-login">Войти / Регистрация</a>
         </nav>
     </header>
 

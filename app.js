@@ -5,6 +5,97 @@ const API_URL = (() => {
     return (fromWindow || fromMeta || 'http://localhost:5000').replace(/\/$/, '');
 })();
 
+function getRoutePath() {
+    let path = window.location.pathname || '/';
+    if (path.endsWith('/index.html')) path = path.replace(/\/index\.html$/, '') || '/';
+    if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+    return path || '/';
+}
+
+window.navigateTo = (path) => {
+    const target = path.startsWith('/') ? path : `/${path}`;
+    window.history.pushState({}, '', target);
+    router();
+};
+
+function migrateHashRouteIfNeeded() {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#/')) {
+        const path = hash.slice(1) || '/';
+        window.history.replaceState({}, '', path);
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href^="/"]');
+    if (!link || link.getAttribute('target') === '_blank') return;
+    const url = new URL(link.href, window.location.origin);
+    if (url.origin !== window.location.origin) return;
+    e.preventDefault();
+    navigateTo(url.pathname + url.search);
+});
+
+const METHOD_META = {
+    'Лазерная эпиляция': { icon: '✨', desc: 'Стойкое сокращение волос. Идеально для тёмных волос.' },
+    'Электроэпиляция':   { icon: '⚡', desc: 'Перманентный результат на любом типе волос.' },
+    'Шугаринг':          { icon: '🍯', desc: 'Натуральная паста, минимум раздражения.' },
+    'Вакcинг':           { icon: '🌿', desc: 'Быстрое удаление воском на 2–4 недели.' }
+};
+
+function buildMethodCardsHtml(services) {
+    const methods = [...new Set(services.map(s => s.method).filter(Boolean))];
+    if (methods.length === 0) {
+        return '<p style="color:#8a5a65;">Методы скоро появятся в каталоге.</p>';
+    }
+    return methods.map(key => {
+        const m = METHOD_META[key] || { icon: '💆', desc: 'Услуги студии' };
+        return `
+        <div class="method-card method-card-link" onclick="navigateTo('/catalog/${encodeURIComponent(key)}')">
+            <div class="method-icon">${m.icon}</div>
+            <h3>${key}</h3>
+            <p>${m.desc}</p>
+            <span class="method-card-cta">Смотреть цены →</span>
+        </div>`;
+    }).join('');
+}
+
+function renderCatalogFiltersBlock() {
+    return `
+        <h2 style="margin-top:40px;">Все услуги</h2>
+        <p style="color:#8a5a65; margin-bottom:16px;">Фильтрация по зоне, цене и специалисту (данные с API).</p>
+        <div class="filters-panel">
+            <div class="filter-group">
+                <label for="filterZone">Зона</label>
+                <select id="filterZone">
+                    <option value="">Все</option>
+                    <option value="Лицо">Лицо</option>
+                    <option value="Тело">Тело</option>
+                    <option value="Руки">Руки</option>
+                    <option value="Ноги">Ноги</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filterMinPrice">Цена от</label>
+                <input type="number" id="filterMinPrice" min="0" placeholder="0">
+            </div>
+            <div class="filter-group">
+                <label for="filterMaxPrice">Цена до</label>
+                <input type="number" id="filterMaxPrice" min="0" placeholder="500">
+            </div>
+            <div class="filter-group">
+                <label for="filterMaster">Специалист</label>
+                <select id="filterMaster"><option value="">Все</option></select>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="applyFilters()">Применить</button>
+            <button type="button" class="btn btn-secondary" onclick="resetFilters()">Сбросить</button>
+        </div>
+        <div id="catalogSpinner" class="spinner-wrap"><div class="spinner"></div></div>
+        <div id="catalogEmpty" style="display:none; text-align:center; padding:30px;">
+            <p style="color:#8a5a65;">По выбранным фильтрам ничего не найдено.</p>
+        </div>
+        <div id="servicesList" class="services-grid" style="display:none;"></div>`;
+}
+
 // Глобальный перехватчик сетевых ошибок
 const _originalFetch = window.fetch;
 window.fetch = async (...args) => {
@@ -33,12 +124,12 @@ const routes = {
             const services = await servicesRes.json();
             const masters  = await mastersRes.json();
 
-            const procedures = [
-                { name: 'Лазерная эпиляция', icon: '✨', desc: 'Современный метод с долгосрочным результатом' },
-                { name: 'Вакcинг',            icon: '🌿', desc: 'Быстро и эффективно для любых зон' },
-                { name: 'Шугаринг',           icon: '🍯', desc: 'Натуральная паста, минимум раздражения' },
-                { name: 'Электроэпиляция',    icon: '⚡', desc: 'Единственный метод с гарантией навсегда' }
-            ];
+            const methodNames = [...new Set(services.map(s => s.method).filter(Boolean))];
+            const procedures = methodNames.map(name => ({
+                name,
+                icon: (METHOD_META[name] || {}).icon || '💆',
+                desc: (METHOD_META[name] || {}).desc || 'Услуги студии'
+            }));
 
             return `
                 <div class="fade-in">
@@ -46,8 +137,8 @@ const routes = {
                         <h1 class="hero-title">Smooth <span>Lab</span></h1>
                         <p class="hero-sub">Профессиональное удаление волос — лазер, вакcинг, шугаринг, электроэпиляция</p>
                         <div class="hero-actions">
-                            <a href="#/quiz" class="btn btn-primary">Подобрать процедуру</a>
-                            <a href="#/catalog" class="btn btn-secondary">Весь каталог</a>
+                            <a href="/quiz" class="btn btn-primary">Подобрать процедуру</a>
+                            <a href="/catalog" class="btn btn-secondary">Весь каталог</a>
                         </div>
                     </section>
 
@@ -61,7 +152,7 @@ const routes = {
                             <span class="stat-label">Специалистов</span>
                         </div>
                         <div class="stat-card">
-                            <span class="stat-num">4</span>
+                            <span class="stat-num">${methodNames.length || 0}</span>
                             <span class="stat-label">Метода</span>
                         </div>
                     </section>
@@ -82,7 +173,7 @@ const routes = {
                     <section class="home-cta">
                         <h2>Не знаете, что выбрать?</h2>
                         <p>Пройдите короткий квиз — мы подберём процедуру под ваш тип кожи и бюджет.</p>
-                        <a href="#/quiz" class="btn btn-primary">Пройти квиз</a>
+                        <a href="/quiz" class="btn btn-primary">Пройти квиз</a>
                     </section>
                 </div>`;
         } catch (err) {
@@ -92,8 +183,8 @@ const routes = {
                         <h1 class="hero-title">Smooth <span>Lab</span></h1>
                         <p class="hero-sub">Профессиональное удаление волос — лазер, вакcинг, шугаринг, электроэпиляция</p>
                         <div class="hero-actions">
-                            <a href="#/quiz" class="btn btn-primary">Подобрать процедуру</a>
-                            <a href="#/catalog" class="btn btn-secondary">Весь каталог</a>
+                            <a href="/quiz" class="btn btn-primary">Подобрать процедуру</a>
+                            <a href="/catalog" class="btn btn-secondary">Весь каталог</a>
                         </div>
                     </section>
                 </div>`;
@@ -101,33 +192,33 @@ const routes = {
     },
     
     '/catalog': async () => {
-        const methods = [
-            { key: 'Лазерная эпиляция', icon: '✨', desc: 'Стойкое сокращение волос на 80–95%. Идеально для тёмных волос.' },
-            { key: 'Электроэпиляция',   icon: '⚡', desc: '100% перманентный результат. Работает на любом цвете волос.' },
-            { key: 'Шугаринг',          icon: '🍯', desc: 'Натуральная паста, минимум боли. Подходит для чувствительной кожи.' },
-            { key: 'Вакcинг',           icon: '🌿', desc: 'Быстрое удаление воском. Гладкость на 2–4 недели.' }
-        ];
-        return `
+        try {
+            const res = await fetch(`${API_URL}/api/services`);
+            if (!res.ok) throw new Error();
+            const services = await res.json();
+            return `
             <div class="fade-in">
                 <h1>Каталог услуг</h1>
-                <p style="color:#8a5a65; margin-bottom:30px;">Выберите метод, чтобы увидеть доступные зоны и цены.</p>
-                <div class="methods-grid">
-                    ${methods.map(m => `
-                        <div class="method-card method-card-link" onclick="location.hash='#/catalog/${encodeURIComponent(m.key)}'">
-                            <div class="method-icon">${m.icon}</div>
-                            <h3>${m.key}</h3>
-                            <p>${m.desc}</p>
-                            <span class="method-card-cta">Смотреть цены →</span>
-                        </div>
-                    `).join('')}
-                </div>
+                <p style="color:#8a5a65; margin-bottom:30px;">Выберите метод или отфильтруйте все услуги ниже.</p>
+                <div class="methods-grid">${buildMethodCardsHtml(services)}</div>
+                ${renderCatalogFiltersBlock()}
             </div>`;
+        } catch (err) {
+            return `
+            <div class="fade-in">
+                <h1>Каталог услуг</h1>
+                <p class="error-text">Не удалось загрузить каталог. Проверьте соединение.</p>
+            </div>`;
+        }
     },
 
     '/search': () => `
         <div class="fade-in">
             <h1>Поиск услуг</h1>
-            <input type="text" id="searchInput" placeholder="Введите название или метод..." oninput="debouncedSearch(this.value)" autocomplete="off">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; max-width:600px; margin:0 auto 20px;">
+                <input type="text" id="searchInput" placeholder="Введите название или метод..." oninput="debouncedSearch(this.value)" onkeydown="if(event.key==='Enter')handleSearchFromButton()" autocomplete="off" style="flex:1; min-width:200px;">
+                <button type="button" class="btn btn-primary" onclick="handleSearchFromButton()">Найти</button>
+            </div>
             <div id="searchResults" class="services-grid" style="margin-top:20px;"></div>
         </div>`,
 
@@ -190,7 +281,7 @@ const routes = {
             </div>`;
         } catch (err) {
             localStorage.clear();
-            window.location.hash = '#/auth';
+            navigateTo('/auth');
             return `<h1>Сессия истекла, войдите снова</h1>`;
         }
     },
@@ -268,7 +359,7 @@ const routes = {
                     ${services.length === 0
                         ? `<div class="card" style="text-align:center;">
                                <p>Вы ещё не добавили ни одной услуги в избранное.</p>
-                               <a href="#/catalog" class="btn btn-primary">Перейти в каталог</a>
+                               <a href="/catalog" class="btn btn-primary">Перейти в каталог</a>
                            </div>`
                         : `<div class="services-grid">${renderServices(services, [])}</div>`
                     }
@@ -425,10 +516,11 @@ window.toggleFavorite = async (serviceId, btn) => {
 function updateNav() {
     const token = localStorage.getItem('token');
     const userName = localStorage.getItem('userName');
-    const hash  = window.location.hash.slice(1) || '/';
+    const path = getRoutePath();
 
     const navItems = {
         'nav-auth':      !token,
+        'nav-logout':    !!token,
         'nav-profile':   !!token,
         'nav-favorites': !!token,
         'nav-admin':     !!token,
@@ -448,8 +540,8 @@ function updateNav() {
     document.querySelectorAll('nav a').forEach(link => {
         const href = link.getAttribute('href');
         if (!href) return;
-        const linkHash = href.replace('#', '') || '/';
-        const isActive = hash === linkHash || (linkHash !== '/' && hash.startsWith(linkHash));
+        const linkPath = new URL(href, window.location.origin).pathname || '/';
+        const isActive = path === linkPath || (linkPath !== '/' && path.startsWith(linkPath));
         link.classList.toggle('nav-active', isActive);
     });
 }
@@ -476,6 +568,16 @@ async function getApiErrorMessage(res, fallback = 'Произошла ошибк
 }
 
 let searchTimer = null;
+
+window.handleSearchFromButton = () => {
+    const input = document.getElementById('searchInput');
+    const q = (input?.value || '').trim();
+    if (q.length < 2) {
+        showModal('Внимание', 'Введите минимум 2 символа для поиска.');
+        return;
+    }
+    handleSearch(q);
+};
 
 window.debouncedSearch = (query) => {
     clearTimeout(searchTimer);
@@ -525,7 +627,7 @@ window.handleSearch = async (query) => {
 
 window.logout = () => {
     AuthState.clear();
-    window.location.hash = '#/auth';
+    navigateTo('/auth');
 };
 
 window.switchAuth = (mode) => {
@@ -602,7 +704,7 @@ window.submitRecovery = async () => {
             AuthState.setToken(verifyData.token);
             if (verifyData.user?.name) localStorage.setItem('userName', verifyData.user.name);
             closeModal();
-            window.location.hash = '#/profile';
+            navigateTo('/profile');
             showModal("Успех", "Вы успешно вошли в аккаунт!");
         } else {
             errorBlock.innerText = verifyData.message || "Неверный ответ!";
@@ -635,7 +737,7 @@ function initLoginLogic() {
                 if (data.user?.name) localStorage.setItem('userName', data.user.name);
                 msg.style.color = "green";
                 msg.innerText = "Успешный вход!";
-                setTimeout(() => window.location.hash = '#/profile', 1000);
+                setTimeout(() => navigateTo('/profile'), 1000);
             } else {
                 msg.style.color = "red";
                 msg.innerText = await getApiErrorMessage(res, 'Ошибка авторизации');
@@ -1071,7 +1173,7 @@ async function showQuizResults() {
                 ` : '<p style="color:#8a5a65;">Процедуры этого метода скоро появятся в каталоге.</p>'}
 
                 <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:30px;">
-                    <a href="#/catalog/${encodeURIComponent(info.key)}" class="btn btn-primary">Перейти к методу →</a>
+                    <a href="/catalog/${encodeURIComponent(info.key)}" class="btn btn-primary">Перейти к методу →</a>
                     <button class="btn btn-secondary" onclick="initQuiz()">← Пройти заново</button>
                 </div>
             </div>`;
@@ -1097,7 +1199,8 @@ const AuthState = {
     },
     clear() {
         this.token = null;
-        localStorage.clear();
+        localStorage.removeItem('token');
+        localStorage.removeItem('userName');
         updateNav();
     }
 };
@@ -1158,17 +1261,17 @@ window.loadMoreZones = async (methodName, btn) => {
 
 // Главный роутер
 async function router() {
-    const hash = window.location.hash.slice(1) || '/';
+    const path = getRoutePath();
     const app = document.getElementById('app');
     const token = AuthState.token;
 
-    if (['/profile', '/admin', '/favorites', '/quiz'].includes(hash) && !token) {
-        window.location.hash = '#/auth';
+    if (['/profile', '/admin', '/favorites', '/quiz'].includes(path) && !token) {
+        navigateTo('/auth');
         return;
     }
 
-    if (hash.startsWith('/catalog/')) {
-        const methodName = decodeURIComponent(hash.split('/catalog/')[1]);
+    if (path.startsWith('/catalog/')) {
+        const methodName = decodeURIComponent(path.split('/catalog/')[1]);
         try {
             const { sortBy, order, value: selectedSort } = getMethodSortConfig(methodName);
             const spinner = `<div class="spinner-wrap"><div class="spinner"></div></div>`;
@@ -1194,7 +1297,7 @@ async function router() {
 
             app.innerHTML = `
                 <div class="fade-in">
-                    <button class="btn btn-secondary" onclick="location.hash='#/catalog'" style="margin-bottom:20px;">← Назад к методам</button>
+                    <button class="btn btn-secondary" onclick="navigateTo('/catalog')" style="margin-bottom:20px;">← Назад к методам</button>
                     <h1>${methodIcons[methodName] || ''} ${methodName}</h1>
 
                     <h2 style="margin:30px 0 15px;">Зоны и цены</h2>
@@ -1250,24 +1353,27 @@ async function router() {
         }
     }
 
-    const viewFunc = routes[hash] || (() => '<div class="fade-in"><h1>404 — Страница не найдена</h1><p>Такой страницы не существует.</p><a href="#/" class="btn btn-primary" style="margin-top:20px;">На главную</a></div>');
+    const viewFunc = routes[path] || (() => '<div class="fade-in"><h1>404 — Страница не найдена</h1><p>Такой страницы не существует.</p><a href="/" class="btn btn-primary" style="margin-top:20px;">На главную</a></div>');
     app.innerHTML = await viewFunc();
 
-    if (hash === '/auth') {
+    if (path === '/auth') {
         initLoginLogic();
         initRegLogic(); 
     }
-    if (hash === '/catalog') {
+    if (path === '/catalog') {
         loadCatalog();
     }
-    if (hash === '/quiz') {
+    if (path === '/quiz') {
         initQuiz();
     }
-    if (hash === '/admin') {
+    if (path === '/admin') {
         initAdmin();
     }
     updateNav(); 
 }
 
-window.addEventListener('hashchange', router);
-window.addEventListener('load', router);
+window.addEventListener('popstate', router);
+window.addEventListener('load', () => {
+    migrateHashRouteIfNeeded();
+    router();
+});

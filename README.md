@@ -4,8 +4,13 @@ SPA-приложение для студии эпиляции: каталог у
 
 ## Production ссылки
 
-- Frontend (Netlify): `TODO: добавить ссылку после деплоя`
-- Backend API (Render): `TODO: добавить ссылку после деплоя`
+- **Репозиторий:** https://github.com/Karolina-hub/Smooth-Lab
+- **Frontend (Netlify):** https://willowy-daffodil-79c7c3.netlify.app
+- **Backend API (Render):** https://smooth-lab-api.onrender.com
+- **База данных:** MongoDB Atlas (облако)
+
+> Открывайте сайт по ссылке Netlify, а не по URL Render.  
+> `https://smooth-lab-api.onrender.com` — это только API (JSON/health).
 
 ## Ключевые функции
 
@@ -70,8 +75,8 @@ node index.js
 - `window.__API_URL` (если задано), или
 - `<meta name="api-url" ...>` в `index.html`.
 
-Для локальной разработки значение: `http://localhost:5000`.
-Для production нужно заменить его на URL backend.
+По умолчанию frontend использует production API (`https://smooth-lab-api.onrender.com`).  
+Для локального backend добавьте к URL: `?useLocalApi=1` (например `http://127.0.0.1:5500/?useLocalApi=1`).
 
 ## Деплой (самый простой путь)
 
@@ -154,8 +159,8 @@ node index.js
 
 ## Маршруты frontend
 
-- Публичные: `#/`, `#/auth`, `#/catalog`, `#/catalog/:method`, `#/search`.
-- Приватные: `#/favorites`, `#/profile`, `#/admin`, `#/quiz`.
+- Публичные: `/`, `/auth`, `/catalog`, `/catalog/:method`, `/search`.
+- Приватные: `/favorites`, `/profile`, `/admin`, `/quiz`.
 - `404` страница для неизвестных hash-маршрутов.
 
 ## Скриншоты (добавить перед сдачей)

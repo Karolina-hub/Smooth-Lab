@@ -36,6 +36,14 @@ app.get('/api/health', (req, res) => {
     res.json({ ok: true, service: 'smooth-lab-api' });
 });
 
+// Единый обработчик ошибок API
+app.use((err, req, res, next) => {
+    console.error('API error:', err.message);
+    res.status(err.status || 500).json({
+        message: err.message || 'Внутренняя ошибка сервера'
+    });
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Подключение к базе
