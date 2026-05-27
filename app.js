@@ -202,6 +202,7 @@ const routes = {
                 <p style="color:#8a5a65; margin-bottom:30px;">Выберите метод или отфильтруйте все услуги ниже.</p>
                 <div class="methods-grid">${buildMethodCardsHtml(services)}</div>
                 ${renderCatalogFiltersBlock()}
+                <p style="color:#8a5a65; font-size:14px; margin-top:8px;">В блоке «Все услуги» нажмите 🤍 для добавления в избранное.</p>
             </div>`;
         } catch (err) {
             return `
@@ -209,6 +210,44 @@ const routes = {
                 <h1>Каталог услуг</h1>
                 <p class="error-text">Не удалось загрузить каталог. Проверьте соединение.</p>
             </div>`;
+        }
+    },
+
+    '/specialists': async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/masters`);
+            if (!res.ok) throw new Error();
+            const masters = await res.json();
+
+            if (masters.length === 0) {
+                return `
+                <div class="fade-in">
+                    <h1>Специалисты</h1>
+                    <div class="card" style="text-align:center;">
+                        <p>Пока нет специалистов в базе.</p>
+                        <p style="color:#8a5a65; font-size:14px;">Добавьте через админ-панель или POST /api/masters (нужен JWT).</p>
+                    </div>
+                </div>`;
+            }
+
+            return `
+            <div class="fade-in">
+                <h1>Специалисты</h1>
+                <p style="color:#8a5a65; margin-bottom:24px;">Команда Smooth Lab</p>
+                <div class="services-grid">
+                    ${masters.map(m => `
+                        <div class="card">
+                            <img src="${m.photo || 'https://via.placeholder.com/150'}" style="width:100%; border-radius:10px; margin-bottom:10px;" alt="${m.name}">
+                            <h3>${m.name}</h3>
+                            <p><em>${m.specialization}</em></p>
+                            <p>Опыт: ${m.experience}</p>
+                            <p style="font-size:13px; color:#8a5a65;">Услуга: ${m.service?.title || '—'}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+        } catch (err) {
+            return `<div class="fade-in"><h1>Специалисты</h1><p class="error-text">Не удалось загрузить список специалистов.</p></div>`;
         }
     },
 
@@ -370,6 +409,18 @@ const routes = {
     }
 };
 
+async function fetchFavoriteIds() {
+    const token = localStorage.getItem('token');
+    if (!token) return [];
+    try {
+        const favRes = await fetch(`${API_URL}/api/favorites/ids`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (favRes.ok) return await favRes.json();
+    } catch (_) {}
+    return [];
+}
+
 function renderServices(items, favoriteIds = []) {
     return items.map(s => {
         const isFav = favoriteIds.includes(s._id);
@@ -379,6 +430,28 @@ function renderServices(items, favoriteIds = []) {
             <p style="font-size:13px; color:#8a5a65; margin:2px 0 8px;">${s.method || ''}</p>
             <p class="card-price">${s.price} руб.</p>
             <div class="card-actions">
+                <button
+                    class="btn-like ${isFav ? 'liked' : ''}"
+                    onclick="toggleFavorite('${s._id}', this)"
+                    title="${isFav ? 'Убрать из избранного' : 'В избранное'}">
+                    ${isFav ? '❤️' : '🤍'}
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderPriceRows(services, favoriteIds = []) {
+    if (!services.length) {
+        return '<p style="color:#8a5a65; padding:20px;">Прайс скоро появится.</p>';
+    }
+    return services.map(s => {
+        const isFav = favoriteIds.includes(String(s._id));
+        return `
+        <div class="price-row price-row-with-like">
+            <span class="price-zone">${s.title}</span>
+            <div class="price-row-actions">
+                <span class="price-amount">${s.price} руб.</span>
                 <button
                     class="btn-like ${isFav ? 'liked' : ''}"
                     onclick="toggleFavorite('${s._id}', this)"
@@ -431,17 +504,7 @@ async function loadCatalog(params = {}) {
             });
         }
 
-        // Получаем ID избранных услуг (если пользователь авторизован)
-        let favoriteIds = [];
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const favRes = await fetch(`${API_URL}/api/favorites/ids`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (favRes.ok) favoriteIds = await favRes.json();
-            } catch (_) { /* не критично */ }
-        }
+        const favoriteIds = await fetchFavoriteIds();
 
         if (spinner) spinner.style.display = 'none';
 
@@ -515,7 +578,6 @@ window.toggleFavorite = async (serviceId, btn) => {
 
 function updateNav() {
     const token = localStorage.getItem('token');
-    const userName = localStorage.getItem('userName');
     const path = getRoutePath();
 
     const navItems = {
@@ -530,12 +592,6 @@ function updateNav() {
         const el = document.getElementById(id);
         if (el) el.style.display = show ? 'block' : 'none';
     }
-    const userLabel = document.getElementById('nav-user');
-    if (userLabel) {
-        userLabel.style.display = token && userName ? 'block' : 'none';
-        userLabel.textContent = userName ? `Привет, ${userName}` : '';
-    }
-
     // Подсвечиваем активный пункт меню
     document.querySelectorAll('nav a').forEach(link => {
         const href = link.getAttribute('href');
@@ -1223,7 +1279,7 @@ async function showQuizResults() {
     const info = methodInfo[method];
 
     try {
-        const res = await fetch(`${API_URL}/api/services?method=${encodeURIComponent(info.key)}&isZone=true`);
+        const res = await fetch(`${API_URL}/api/services?method=${encodeURIComponent(info.key)}`);
         const services = await res.json();
 
         container.innerHTML = `
@@ -1302,16 +1358,21 @@ window.loadMoreZones = async (methodName, btn) => {
     try {
         const { sortBy, order } = getMethodSortConfig(methodName);
         const res = await fetch(
-            `${API_URL}/api/services?method=${encodeURIComponent(methodName)}&isZone=true&limit=5&skip=${skip}&sortBy=${sortBy}&order=${order}`
+            `${API_URL}/api/services?method=${encodeURIComponent(methodName)}&limit=5&skip=${skip}&sortBy=${sortBy}&order=${order}`
         );
         const { items, total } = await res.json();
+        const favoriteIds = await fetchFavoriteIds();
 
         items.forEach(s => {
             const row = document.createElement('div');
-            row.className = 'price-row';
+            row.className = 'price-row price-row-with-like';
+            const isFav = favoriteIds.includes(String(s._id));
             row.innerHTML = `
                 <span class="price-zone">${s.title}</span>
-                <span class="price-amount">${s.price} руб.</span>`;
+                <div class="price-row-actions">
+                    <span class="price-amount">${s.price} руб.</span>
+                    <button class="btn-like ${isFav ? 'liked' : ''}" onclick="toggleFavorite('${s._id}', this)">${isFav ? '❤️' : '🤍'}</button>
+                </div>`;
             table.appendChild(row);
         });
 
@@ -1347,16 +1408,21 @@ async function router() {
             const spinner = `<div class="spinner-wrap"><div class="spinner"></div></div>`;
             app.innerHTML = `<div class="fade-in"><h1>${methodName}</h1>${spinner}</div>`;
 
-            const [servicesRes, mastersRes] = await Promise.all([
-                fetch(`${API_URL}/api/services?method=${encodeURIComponent(methodName)}&isZone=true&limit=5&skip=0&sortBy=${sortBy}&order=${order}`),
-                fetch(`${API_URL}/api/masters`)
+            const [servicesRes, mastersRes, favoriteIds] = await Promise.all([
+                fetch(`${API_URL}/api/services?method=${encodeURIComponent(methodName)}&limit=5&skip=0&sortBy=${sortBy}&order=${order}`),
+                fetch(`${API_URL}/api/masters`),
+                fetchFavoriteIds()
             ]);
             const { items: services, total } = await servicesRes.json();
             const masters  = await mastersRes.json();
 
-            const methodMasters = masters.filter(m =>
-                services.some(s => s._id === (m.service?._id || m.service))
-            );
+            const methodMasters = masters.filter(m => {
+                const svc = m.service;
+                const svcMethod = typeof svc === 'object' && svc ? svc.method : null;
+                return svcMethod === methodName;
+            });
+
+            const priceHeading = methodName === 'Электроэпиляция' ? 'Тарифы' : 'Зоны и цены';
 
             const methodIcons = {
                 'Лазерная эпиляция': '✨',
@@ -1370,7 +1436,8 @@ async function router() {
                     <button class="btn btn-secondary" onclick="navigateTo('/catalog')" style="margin-bottom:20px;">← Назад к методам</button>
                     <h1>${methodIcons[methodName] || ''} ${methodName}</h1>
 
-                    <h2 style="margin:30px 0 15px;">Зоны и цены</h2>
+                    <h2 style="margin:30px 0 15px;">${priceHeading}</h2>
+                    <p style="color:#8a5a65; font-size:14px; margin:-8px 0 12px;">Нажмите 🤍, чтобы добавить в избранное (нужен вход).</p>
                     <div class="filters-panel" style="margin-bottom:12px; max-width:600px;">
                         <div class="filter-group">
                             <label for="methodSort">Сортировка</label>
@@ -1383,14 +1450,7 @@ async function router() {
                         </div>
                     </div>
                     <div class="price-table" id="priceTable">
-                        ${services.length > 0
-                            ? services.map(s => `
-                                <div class="price-row">
-                                    <span class="price-zone">${s.title}</span>
-                                    <span class="price-amount">${s.price} руб.</span>
-                                </div>`).join('')
-                            : '<p style="color:#8a5a65; padding:20px;">Прайс скоро появится.</p>'
-                        }
+                        ${renderPriceRows(services, favoriteIds)}
                     </div>
                     ${total > 5 ? `
                         <button class="btn btn-secondary" id="loadMoreBtn"

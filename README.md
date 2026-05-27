@@ -159,7 +159,7 @@ node index.js
 
 ## Маршруты frontend
 
-- Публичные: `/`, `/auth`, `/catalog`, `/catalog/:method`, `/search`.
+- Публичные: `/`, `/auth`, `/catalog`, `/catalog/:method`, `/search`, `/specialists`.
 - Приватные: `/favorites`, `/profile`, `/admin`, `/quiz`.
 - `404` страница для неизвестных hash-маршрутов.
 

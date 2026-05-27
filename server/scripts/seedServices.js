@@ -8,6 +8,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const Service = require('../models/Service');
+const Master = require('../models/Master');
 
 const services = [
     // Лазерная эпиляция
@@ -67,6 +68,20 @@ mongoose.connect(process.env.MONGO_URI)
         console.log('Старые услуги удалены.');
         await Service.insertMany(services);
         console.log(`Добавлено ${services.length} услуг.`);
+
+        await Master.deleteMany({});
+        const laserService = await Service.findOne({ method: 'Лазерная эпиляция' });
+        if (laserService) {
+            await Master.create({
+                name: 'Анна Иванова',
+                specialization: 'Лазерная эпиляция',
+                experience: '5 лет',
+                service: laserService._id,
+                photo: 'https://via.placeholder.com/150'
+            });
+            console.log('Добавлен демо-специалист.');
+        }
+
         process.exit(0);
     })
     .catch(err => {

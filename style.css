@@ -890,6 +890,17 @@ main {
     white-space: nowrap;
 }
 
+.price-row-with-like {
+    gap: 12px;
+}
+
+.price-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
 /* Активный пункт меню */
 nav a.nav-active {
     color: #ff8fa3;

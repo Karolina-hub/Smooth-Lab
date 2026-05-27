@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "seed:services": "node scripts/seedServices.js",
+    "seed": "node scripts/seedServices.js",
     "test": "echo \"No tests configured\""
   },
   "keywords": [],
