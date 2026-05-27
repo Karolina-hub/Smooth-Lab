@@ -1,3 +1,20 @@
+// Глобальный перехватчик сетевых ошибок
+const _originalFetch = window.fetch;
+window.fetch = async (...args) => {
+    try {
+        const res = await _originalFetch(...args);
+        return res;
+    } catch (err) {
+        const banner = document.getElementById('networkError');
+        if (banner) {
+            banner.style.display = 'block';
+            clearTimeout(banner._timer);
+            banner._timer = setTimeout(() => { banner.style.display = 'none'; }, 4000);
+        }
+        throw err;
+    }
+};
+
 // Маршруты SPA
 const routes = {
     '/': async () => {
