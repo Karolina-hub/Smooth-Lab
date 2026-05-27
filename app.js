@@ -484,8 +484,7 @@ window.handleSearch = async (query) => {
 };
 
 window.logout = () => {
-    localStorage.clear();
-    updateNav(); 
+    AuthState.clear();
     window.location.hash = '#/auth';
 };
 
@@ -560,10 +559,9 @@ window.submitRecovery = async () => {
         const verifyData = await verifyRes.json();
 
         if (verifyRes.ok) {
-            localStorage.setItem('token', verifyData.token);
+            AuthState.setToken(verifyData.token);
             closeModal();
             window.location.hash = '#/profile';
-            updateNav();
             showModal("Успех", "Вы успешно вошли в аккаунт!");
         } else {
             errorBlock.innerText = verifyData.message || "Неверный ответ!";
@@ -592,8 +590,7 @@ function initLoginLogic() {
             });
             const data = await res.json();
             if (res.ok) {
-                localStorage.setItem('token', data.token);
-                updateNav();
+                AuthState.setToken(data.token);
                 msg.style.color = "green";
                 msg.innerText = "Успешный вход!";
                 setTimeout(() => window.location.hash = '#/profile', 1000);
@@ -1049,11 +1046,66 @@ async function showQuizResults() {
     }
 }
 
+// Глобальное состояние авторизации
+const AuthState = {
+    token: localStorage.getItem('token'),
+    get isLoggedIn() { return !!this.token; },
+    setToken(token) {
+        this.token = token;
+        if (token) localStorage.setItem('token', token);
+        else localStorage.removeItem('token');
+        updateNav();
+    },
+    clear() {
+        this.token = null;
+        localStorage.clear();
+        updateNav();
+    }
+};
+
+// Загружает следующую порцию зон в прайс-таблицу
+window.loadMoreZones = async (methodName, btn) => {
+    const skip  = parseInt(btn.dataset.skip) || 0;
+    const table = document.getElementById('priceTable');
+    if (!table) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Загрузка...';
+
+    try {
+        const res = await fetch(
+            `http://localhost:5000/api/services?method=${encodeURIComponent(methodName)}&limit=5&skip=${skip}`
+        );
+        const { items, total } = await res.json();
+
+        items.forEach(s => {
+            const row = document.createElement('div');
+            row.className = 'price-row';
+            row.innerHTML = `
+                <span class="price-zone">${s.title}</span>
+                <span class="price-amount">${s.price} руб.</span>`;
+            table.appendChild(row);
+        });
+
+        const loaded = skip + items.length;
+        if (loaded >= total) {
+            btn.remove();
+        } else {
+            btn.dataset.skip = loaded;
+            btn.disabled = false;
+            btn.textContent = `Загрузить ещё (показано ${loaded} из ${total})`;
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Ошибка. Попробовать снова';
+    }
+};
+
 // Главный роутер
 async function router() {
     const hash = window.location.hash.slice(1) || '/';
     const app = document.getElementById('app');
-    const token = localStorage.getItem('token');
+    const token = AuthState.token;
 
     if (['/profile', '/admin', '/favorites', '/quiz'].includes(hash) && !token) {
         window.location.hash = '#/auth';
@@ -1067,10 +1119,10 @@ async function router() {
             app.innerHTML = `<div class="fade-in"><h1>${methodName}</h1>${spinner}</div>`;
 
             const [servicesRes, mastersRes] = await Promise.all([
-                fetch(`http://localhost:5000/api/services?method=${encodeURIComponent(methodName)}`),
+                fetch(`http://localhost:5000/api/services?method=${encodeURIComponent(methodName)}&limit=5&skip=0`),
                 fetch('http://localhost:5000/api/masters')
             ]);
-            const services = await servicesRes.json();
+            const { items: services, total } = await servicesRes.json();
             const masters  = await mastersRes.json();
 
             const methodMasters = masters.filter(m =>
@@ -1090,7 +1142,7 @@ async function router() {
                     <h1>${methodIcons[methodName] || ''} ${methodName}</h1>
 
                     <h2 style="margin:30px 0 15px;">Зоны и цены</h2>
-                    <div class="price-table">
+                    <div class="price-table" id="priceTable">
                         ${services.length > 0
                             ? services.map(s => `
                                 <div class="price-row">
@@ -1100,6 +1152,14 @@ async function router() {
                             : '<p style="color:#8a5a65; padding:20px;">Прайс скоро появится.</p>'
                         }
                     </div>
+                    ${total > 5 ? `
+                        <button class="btn btn-secondary" id="loadMoreBtn"
+                            onclick="loadMoreZones('${methodName}', this)"
+                            data-skip="5"
+                            style="margin-top:12px;">
+                            Загрузить ещё (показано ${services.length} из ${total})
+                        </button>
+                    ` : ''}
 
                     ${methodMasters.length > 0 ? `
                         <h2 style="margin:40px 0 15px;">Наши специалисты</h2>

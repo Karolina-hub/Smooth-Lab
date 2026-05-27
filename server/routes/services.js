@@ -41,6 +41,16 @@ router.get('/', async (req, res) => {
             }
         }
 
+        // Пагинация: limit и skip применяются после всех фильтров
+        const limit = parseInt(req.query.limit) || 0;
+        const skip  = parseInt(req.query.skip)  || 0;
+        const total = services.length;
+
+        if (limit > 0) {
+            const page = services.slice(skip, skip + limit);
+            return res.json({ items: page, total });
+        }
+
         res.json(services);
     } catch (err) {
         console.error('Ошибка при получении всех услуг:', err);
