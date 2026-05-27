@@ -5,10 +5,24 @@ const User = require('../models/User');
 const auth = require('../middleware/authMiddleware'); 
 const router = express.Router();
 
+function normalizeEmail(email) {
+    return (email || '').trim().toLowerCase();
+}
+
+async function findUserByEmail(email) {
+    const normalized = normalizeEmail(email);
+    if (!normalized) return null;
+    let user = await User.findOne({ email: normalized });
+    if (user) return user;
+    const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return User.findOne({ email: { $regex: new RegExp(`^${escaped}$`, 'i') } });
+}
+
 // Регистрация
 router.post('/register', async (req, res) => {
     try {
-        const { email, password, name, phone, securityQuestion, secretWord } = req.body; 
+        const email = normalizeEmail(req.body.email);
+        const { password, name, phone, securityQuestion, secretWord } = req.body;
 
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         const passRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
@@ -20,7 +34,7 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'Пароль должен содержать 8 символов, заглавную букву и цифру' });
         }
 
-        const candidate = await User.findOne({ email });
+        const candidate = await findUserByEmail(email);
         if (candidate) {
             return res.status(400).json({ message: 'Этот Email уже зарегистрирован!' });
         }
@@ -48,8 +62,9 @@ router.post('/register', async (req, res) => {
 // Получение секретного вопроса
 router.get('/get-question', async (req, res) => {
     try {
-        const { email } = req.query;
-        const user = await User.findOne({ email });
+        const email = normalizeEmail(req.query.email);
+        if (!email) return res.status(400).json({ message: 'Укажите email' });
+        const user = await findUserByEmail(email);
         if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
         
         res.json({ question: user.securityQuestion || "Секретный вопрос не задан" });
@@ -61,12 +76,13 @@ router.get('/get-question', async (req, res) => {
 // Вход через секретное слово
 router.post('/verify-secret', async (req, res) => {
     try {
-        const { email, answer } = req.body;
-        const user = await User.findOne({ email });
-        
+        const email = normalizeEmail(req.body.email);
+        const { answer } = req.body;
+        const user = await findUserByEmail(email);
+
         if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
 
-        if (user.secretWord !== answer.toLowerCase().trim()) {
+        if (user.secretWord !== (answer || '').toLowerCase().trim()) {
             return res.status(400).json({ message: 'Неверный ответ на вопрос!' });
         }
 
@@ -80,8 +96,9 @@ router.post('/verify-secret', async (req, res) => {
 // Вход через пароль 
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
+        const email = normalizeEmail(req.body.email);
+        const { password } = req.body;
+        const user = await findUserByEmail(email);
         if (!user) return res.status(400).json({ message: 'Пользователь не найден' });
 
         const isMatch = await bcrypt.compare(password, user.passwordHash);

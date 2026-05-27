@@ -232,8 +232,8 @@ const routes = {
                 <h2>Вход</h2>
                 <input type="text" id="loginIdentifier" placeholder="Email" required>
                 <input type="password" id="loginPassword" placeholder="Пароль" required>
-                <button type="submit">Войти</button>
-                <a href="javascript:void(0)" onclick="forgotPassword()" class="forgot-link">Забыли пароль?</a>
+                <button type="submit" id="loginSubmitBtn">Войти</button>
+                <button type="button" id="forgotPasswordBtn" class="forgot-link">Забыли пароль?</button>
             </form>
             <form id="regForm" class="auth-form" style="display: none;">
                 <h2>Создать аккаунт</h2>
@@ -643,46 +643,88 @@ window.switchAuth = (mode) => {
 
 // Восстановление пароля
 
-// Функция закрытия модалки
-window.closeModal = () => {
+function setAuthMessage(text, color = 'red') {
+    const msg = document.getElementById('authMessage');
+    if (!msg) return;
+    msg.style.color = color;
+    msg.innerText = text;
+}
+
+function openRecoveryModal(question) {
     const modal = document.getElementById('recoveryModal');
-    if (modal) modal.style.display = 'none';
-    document.getElementById('recoveryError').innerText = '';
-    document.getElementById('recoveryAnswer').value = '';
+    const questionText = document.getElementById('recoveryQuestion');
+    const errorBlock = document.getElementById('recoveryError');
+    const answerInput = document.getElementById('recoveryAnswer');
+    if (errorBlock) errorBlock.innerText = '';
+    if (answerInput) answerInput.value = '';
+    if (questionText) questionText.innerHTML = `<strong>Вопрос:</strong> ${question}`;
+    if (modal) {
+        modal.classList.add('is-open');
+        modal.style.display = 'flex';
+    }
+}
+
+window.closeRecoveryModal = () => {
+    const modal = document.getElementById('recoveryModal');
+    if (modal) {
+        modal.classList.remove('is-open');
+        modal.style.display = 'none';
+    }
+    const err = document.getElementById('recoveryError');
+    const ans = document.getElementById('recoveryAnswer');
+    if (err) err.innerText = '';
+    if (ans) ans.value = '';
 };
+window.closeModal = window.closeRecoveryModal;
 
 window.forgotPassword = async () => {
-    const email = document.getElementById('loginIdentifier').value.trim();
-    
+    const emailInput = document.getElementById('loginIdentifier');
+    const forgotBtn = document.getElementById('forgotPasswordBtn');
+    const email = (emailInput?.value || '').trim().toLowerCase();
+
     if (!email) {
-        showModal("Внимание", "Пожалуйста, введите ваш Email в поле входа, чтобы мы нашли секретный вопрос.");
+        setAuthMessage('Введите email в поле выше, затем нажмите «Забыли пароль?»');
+        return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setAuthMessage('Введите корректный email');
         return;
     }
 
+    if (forgotBtn) {
+        forgotBtn.disabled = true;
+        forgotBtn.textContent = 'Загрузка...';
+    }
+    setAuthMessage('Запрашиваем секретный вопрос...', '#8a5a65');
+
     try {
-        // Получаем вопрос от сервера
-        const res = await fetch(`${API_URL}/api/auth/get-question?email=${email}`);
-        const data = await res.json();
+        const res = await fetch(
+            `${API_URL}/api/auth/get-question?email=${encodeURIComponent(email)}`
+        );
+        const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            showModal("Ошибка", data.message || "Пользователь не найден");
+            setAuthMessage(data.message || 'Пользователь с таким email не найден');
+            showModal('Ошибка', data.message || 'Пользователь не найден');
             return;
         }
 
-        const modal = document.getElementById('recoveryModal');
-        const questionText = document.getElementById('recoveryQuestion');
-        
-        questionText.innerHTML = `<strong>Вопрос:</strong> ${data.question}`;
-        modal.style.display = 'flex'; // Используем flex для центрирования из стилей
-
+        setAuthMessage('');
+        openRecoveryModal(data.question || 'Секретный вопрос не задан');
     } catch (err) {
-        showModal("Ошибка", "Не удалось связаться с сервером.");
+        setAuthMessage('Не удалось связаться с сервером. Подождите и попробуйте снова.');
+        showModal('Ошибка', 'Не удалось связаться с сервером. Если сервер «спит», подождите до 1 минуты.');
+    } finally {
+        if (forgotBtn) {
+            forgotBtn.disabled = false;
+            forgotBtn.textContent = 'Забыли пароль?';
+        }
     }
 };
 
 // Функция отправки ответа 
 window.submitRecovery = async () => {
-    const email = document.getElementById('loginIdentifier').value.trim();
+    const email = (document.getElementById('loginIdentifier')?.value || '').trim().toLowerCase();
     const answer = document.getElementById('recoveryAnswer').value.trim();
     const errorBlock = document.getElementById('recoveryError');
 
@@ -703,7 +745,7 @@ window.submitRecovery = async () => {
         if (verifyRes.ok) {
             AuthState.setToken(verifyData.token);
             if (verifyData.user?.name) localStorage.setItem('userName', verifyData.user.name);
-            closeModal();
+            closeRecoveryModal();
             navigateTo('/profile');
             showModal("Успех", "Вы успешно вошли в аккаунт!");
         } else {
@@ -717,33 +759,61 @@ window.submitRecovery = async () => {
 
 function initLoginLogic() {
     const form = document.getElementById('loginForm');
+    const forgotBtn = document.getElementById('forgotPasswordBtn');
     if (!form) return;
-    form.onsubmit = async (e) => {
+
+    if (forgotBtn && !forgotBtn.dataset.bound) {
+        forgotBtn.dataset.bound = '1';
+        forgotBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            forgotPassword();
+        });
+    }
+
+    if (form.dataset.bound) return;
+    form.dataset.bound = '1';
+
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const msg = document.getElementById('authMessage');
-        const loginData = {
-            email: document.getElementById('loginIdentifier').value.trim(), 
-            password: document.getElementById('loginPassword').value.trim()
-        };
+        const submitBtn = document.getElementById('loginSubmitBtn');
+        const email = (document.getElementById('loginIdentifier')?.value || '').trim().toLowerCase();
+        const password = (document.getElementById('loginPassword')?.value || '').trim();
+
+        if (!email || !password) {
+            setAuthMessage('Введите email и пароль');
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Вход...';
+        }
+        setAuthMessage('Выполняется вход...', '#8a5a65');
+
         try {
             const res = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loginData)
+                body: JSON.stringify({ email, password })
             });
             if (res.ok) {
                 const data = await res.json();
                 AuthState.setToken(data.token);
                 if (data.user?.name) localStorage.setItem('userName', data.user.name);
-                msg.style.color = "green";
-                msg.innerText = "Успешный вход!";
-                setTimeout(() => navigateTo('/profile'), 1000);
+                setAuthMessage('Успешный вход!', 'green');
+                setTimeout(() => navigateTo('/profile'), 800);
             } else {
-                msg.style.color = "red";
-                msg.innerText = await getApiErrorMessage(res, 'Ошибка авторизации');
+                setAuthMessage(await getApiErrorMessage(res, 'Ошибка авторизации'));
             }
-        } catch (err) { msg.innerText = "Ошибка сервера"; }
-    };
+        } catch (err) {
+            setAuthMessage('Ошибка сервера. Подождите и попробуйте снова.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Войти';
+            }
+        }
+    });
 }
 
 function initRegLogic() {
