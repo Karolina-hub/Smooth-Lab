@@ -8,6 +8,20 @@ body {
     line-height: 1.6;
 }
 
+.top-booking-line {
+    background: #ff8fa3;
+    color: #fff;
+    text-align: center;
+    padding: 6px 12px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.top-booking-line a {
+    color: #fff;
+    text-decoration: underline;
+}
+
 header {
     background: #ffd1dc;
     padding: 1rem 2rem;

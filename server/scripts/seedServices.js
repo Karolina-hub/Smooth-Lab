@@ -70,17 +70,13 @@ mongoose.connect(process.env.MONGO_URI)
         console.log(`Добавлено ${services.length} услуг.`);
 
         await Master.deleteMany({});
-        const laserService = await Service.findOne({ method: 'Лазерная эпиляция' });
-        if (laserService) {
-            await Master.create({
-                name: 'Анна Иванова',
-                specialization: 'Лазерная эпиляция',
-                experience: '5 лет',
-                service: laserService._id,
-                photo: 'https://via.placeholder.com/150'
-            });
-            console.log('Добавлен демо-специалист.');
-        }
+        await Master.create({
+            name: 'Анна Иванова',
+            specialization: 'Лазерная эпиляция',
+            experience: '5 лет',
+            photo: 'https://via.placeholder.com/150'
+        });
+        console.log('Добавлен демо-специалист.');
 
         process.exit(0);
     })

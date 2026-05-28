@@ -41,8 +41,8 @@ router.get('/', async (req, res) => {
         if (master) {
             const masterDoc = await Master.findById(master);
             if (masterDoc) {
-                const serviceId = masterDoc.service.toString();
-                services = services.filter(s => s._id.toString() === serviceId);
+                const specialization = (masterDoc.specialization || '').trim().toLowerCase();
+                services = services.filter(s => (s.method || '').trim().toLowerCase() === specialization);
             } else {
                 services = [];
             }
@@ -87,7 +87,7 @@ router.get('/:id', async (req, res) => {
 // Добавить новую услугу (только для авторизованных)
 router.post('/', auth, async (req, res) => {
     try {
-        const { title, price, description, zone } = req.body;
+        const { title, price, description, zone, method } = req.body;
 
         if (!title || !price) {
             return res.status(400).json({ message: "Название и цена обязательны для заполнения" });
@@ -96,8 +96,9 @@ router.post('/', auth, async (req, res) => {
         const newService = new Service({ 
             title, 
             price, 
-            description: description || 'Описание будет добавлено позже.',
-            zone: zone || 'Лицо'
+            description: description || `Зона: ${zone || title}`,
+            zone: zone || 'Лицо',
+            method: method || 'Лазерная эпиляция'
         });
 
         await newService.save();

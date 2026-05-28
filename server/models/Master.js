@@ -9,12 +9,6 @@ const MasterSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
-    // Связь с моделью Service 
-    service: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Service',
-        required: true
-    },
     experience: { 
         type: String, 
         default: 'Более 3 лет' 

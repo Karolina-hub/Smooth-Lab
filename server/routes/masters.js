@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Получить всех мастеров
 router.get('/', async (req, res) => {
     try {
-        const masters = await Master.find().populate('service');
+        const masters = await Master.find();
         res.json(masters);
     } catch (err) {
         res.status(500).json({ message: "Ошибка сервера" });

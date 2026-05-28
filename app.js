@@ -277,7 +277,6 @@ const routes = {
                             <h3>${m.name}</h3>
                             <p><em>${m.specialization}</em></p>
                             <p>Опыт: ${m.experience}</p>
-                            <p style="font-size:13px; color:#8a5a65;">Услуга: ${m.service?.title || '—'}</p>
                         </div>
                     `).join('')}
                 </div>
@@ -373,9 +372,15 @@ const routes = {
             <div id="adminServices">
                 <h2>Добавить услугу</h2>
                 <form id="addServiceForm" class="admin-form">
-                    <input type="text" id="svcTitle" placeholder="Название услуги" required>
+                    <input type="text" id="svcTitle" placeholder="Зона (напр. Подмышечные впадины)" required>
                     <input type="number" id="svcPrice" placeholder="Цена (руб.)" min="1" required>
-                    <textarea id="svcDesc" placeholder="Описание" rows="3"></textarea>
+                    <textarea id="svcDesc" placeholder="Описание (если пусто, подставится зона)" rows="3"></textarea>
+                    <select id="svcMethod">
+                        <option value="Лазерная эпиляция">Лазерная эпиляция</option>
+                        <option value="Электроэпиляция">Электроэпиляция</option>
+                        <option value="Шугаринг">Шугаринг</option>
+                        <option value="Вакcинг">Вакcинг</option>
+                    </select>
                     <select id="svcZone">
                         <option value="Лицо">Лицо</option>
                         <option value="Тело">Тело</option>
@@ -393,12 +398,15 @@ const routes = {
                 <h2>Добавить мастера</h2>
                 <form id="addMasterForm" class="admin-form">
                     <input type="text" id="mstrName" placeholder="Имя мастера" required>
-                    <input type="text" id="mstrSpec" placeholder="Специализация" required>
+                    <select id="mstrSpec" required>
+                        <option value="" disabled selected>Специализация мастера</option>
+                        <option value="Лазерная эпиляция">Мастер лазерной эпиляции</option>
+                        <option value="Электроэпиляция">Мастер электроэпиляции</option>
+                        <option value="Шугаринг">Мастер шугаринга</option>
+                        <option value="Вакcинг">Мастер вакcинга</option>
+                    </select>
                     <input type="text" id="mstrExp" placeholder="Опыт (напр. 5 лет)" required>
                     <input type="url" id="mstrPhoto" placeholder="Ссылка на фото (необязательно)">
-                    <select id="mstrService" required>
-                        <option value="" disabled selected>Выберите услугу</option>
-                    </select>
                     <button type="submit" class="btn btn-primary">Добавить мастера</button>
                 </form>
                 <p id="mstrMsg" class="admin-msg"></p>
@@ -1005,26 +1013,10 @@ async function loadAdminServices() {
 
 async function loadAdminMasters() {
     const container = document.getElementById('adminMastersList');
-    const serviceSelect = document.getElementById('mstrService');
     if (!container) return;
     try {
-        const [mastersRes, servicesRes] = await Promise.all([
-            fetch(`${API_URL}/api/masters`),
-            fetch(`${API_URL}/api/services`)
-        ]);
+        const mastersRes = await fetch(`${API_URL}/api/masters`);
         const masters  = await mastersRes.json();
-        const services = await servicesRes.json();
-
-        // Заполняем select услуг в форме добавления мастера
-        if (serviceSelect) {
-            serviceSelect.innerHTML = '<option value="" disabled selected>Выберите услугу</option>';
-            services.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s._id;
-                opt.textContent = s.title;
-                serviceSelect.appendChild(opt);
-            });
-        }
 
         if (masters.length === 0) {
             container.innerHTML = '<p style="color:#8a5a65;">Мастеров пока нет.</p>';
@@ -1054,7 +1046,8 @@ function initAddServiceForm() {
             title:       document.getElementById('svcTitle').value.trim(),
             price:       Number(document.getElementById('svcPrice').value),
             description: document.getElementById('svcDesc').value.trim(),
-            zone:        document.getElementById('svcZone').value
+            zone:        document.getElementById('svcZone').value,
+            method:      document.getElementById('svcMethod').value
         };
 
         if (!body.title || !body.price) {
@@ -1096,13 +1089,12 @@ function initAddMasterForm() {
             name:           document.getElementById('mstrName').value.trim(),
             specialization: document.getElementById('mstrSpec').value.trim(),
             experience:     document.getElementById('mstrExp').value.trim(),
-            photo:          document.getElementById('mstrPhoto').value.trim() || undefined,
-            service:        document.getElementById('mstrService').value
+            photo:          document.getElementById('mstrPhoto').value.trim() || undefined
         };
 
-        if (!body.name || !body.specialization || !body.service) {
+        if (!body.name || !body.specialization) {
             msg.style.color = 'red';
-            msg.textContent = 'Заполните имя, специализацию и выберите услугу.';
+            msg.textContent = 'Заполните имя и специализацию.';
             return;
         }
 
@@ -1461,9 +1453,7 @@ async function router() {
             const masters  = await mastersRes.json();
 
             const methodMasters = masters.filter(m => {
-                const svc = m.service;
-                const svcMethod = typeof svc === 'object' && svc ? svc.method : null;
-                return svcMethod === methodName;
+                return (m.specialization || '').trim().toLowerCase() === methodName.trim().toLowerCase();
             });
 
             const priceHeading = methodName === 'Электроэпиляция' ? 'Тарифы' : 'Зоны и цены';
