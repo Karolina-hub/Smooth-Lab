@@ -374,7 +374,6 @@ const routes = {
                 <form id="addServiceForm" class="admin-form">
                     <input type="text" id="svcTitle" placeholder="Зона (напр. Подмышечные впадины)" required>
                     <input type="number" id="svcPrice" placeholder="Цена (руб.)" min="1" required>
-                    <textarea id="svcDesc" placeholder="Описание (если пусто, подставится зона)" rows="3"></textarea>
                     <select id="svcMethod">
                         <option value="Лазерная эпиляция">Лазерная эпиляция</option>
                         <option value="Электроэпиляция">Электроэпиляция</option>
@@ -1045,7 +1044,6 @@ function initAddServiceForm() {
         const body  = {
             title:       document.getElementById('svcTitle').value.trim(),
             price:       Number(document.getElementById('svcPrice').value),
-            description: document.getElementById('svcDesc').value.trim(),
             zone:        document.getElementById('svcZone').value,
             method:      document.getElementById('svcMethod').value
         };
