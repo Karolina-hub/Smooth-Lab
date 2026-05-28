@@ -101,7 +101,7 @@ function buildMethodCardsHtml(services) {
 function renderCatalogFiltersBlock() {
     return `
         <h2 style="margin-top:40px;">Все услуги</h2>
-        <p style="color:#8a5a65; margin-bottom:16px;">Фильтрация по зоне, цене и специалисту (данные с API).</p>
+        <p style="color:#8a5a65; margin-bottom:16px;">Фильтрация по зоне, цене и специалисту.</p>
         <div class="filters-panel">
             <div class="filter-group">
                 <label for="filterZone">Зона</label>

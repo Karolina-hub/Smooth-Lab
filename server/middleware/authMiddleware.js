@@ -12,7 +12,7 @@ module.exports = function (req, res, next) {
         // Получаем чистый токен
         const cleanToken = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
         
-        // Проверяем на подленность
+        // Проверяем
         const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
         
         // Запоминаем id пользователя в объекте запроса 

@@ -334,7 +334,7 @@ main {
     font-size: 14px;
 }
 
-/* ─── Панель фильтров каталога ─────────────────────────────────────────────── */
+/* Панель фильтров каталога */
 .filters-panel {
     display: flex;
     flex-wrap: wrap;
@@ -380,7 +380,7 @@ main {
     border-color: #ff8fa3;
 }
 
-/* ─── Карточки услуг ────────────────────────────────────────────────────────── */
+/* Карточки услуг */
 .services-grid .service-card {
     width: var(--service-card-width);
     height: var(--service-card-height);
@@ -460,7 +460,7 @@ main {
     margin-top: auto;
 }
 
-/* ─── Кнопка лайка ──────────────────────────────────────────────────────────── */
+/* Кнопка лайка */
 .btn-like {
     background: none;
     border: 2px solid #ffd1dc;
@@ -486,7 +486,7 @@ main {
     background: #fff0f3;
 }
 
-/* ─── Спиннер загрузки ──────────────────────────────────────────────────────── */
+/* Спиннер загрузки */
 .spinner-wrap {
     display: flex;
     justify-content: center;
@@ -507,7 +507,7 @@ main {
     to { transform: rotate(360deg); }
 }
 
-/* ─── Адаптивность (375px) ──────────────────────────────────────────────────── */
+/* Адаптивность (375px) */
 @media (max-width: 480px) {
     header {
         flex-direction: column;
@@ -570,7 +570,7 @@ main {
     }
 }
 
-/* ─── Квиз ──────────────────────────────────────────────────────────────────── */
+/* Квиз */
 .quiz-progress {
     width: 100%;
     height: 6px;
