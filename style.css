@@ -140,11 +140,18 @@ main {
     background: #ddd;
 }
 
+/* Фиксированный размер карточек услуг */
+:root {
+    --service-card-width: 280px;
+    --service-card-height: 200px;
+}
+
 /* Сетки для каталога */
 .services-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, var(--service-card-width));
     gap: 20px;
+    justify-content: center;
 }
 
 /* Формы авторизации */
@@ -374,13 +381,56 @@ main {
 }
 
 /* ─── Карточки услуг ────────────────────────────────────────────────────────── */
-.services-grid .card {
-    max-width: 100%;
+.services-grid .service-card {
+    width: var(--service-card-width);
+    height: var(--service-card-height);
+    max-width: var(--service-card-width);
+    min-width: var(--service-card-width);
+    min-height: var(--service-card-height);
+    max-height: var(--service-card-height);
+    margin: 0;
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    min-height: 170px;
+    gap: 8px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.services-grid .service-card:hover {
+    transform: none;
+}
+
+.services-grid .card:not(.service-card) {
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    height: auto;
+    min-height: unset;
+    max-height: none;
+}
+
+.service-card-title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.35;
+    height: 2.7em;
+    color: #4a4a4a;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.service-card-method {
+    font-size: 13px;
+    color: #8a5a65;
+    margin: 0;
+    height: 1.25em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .card-zone-badge {
@@ -505,8 +555,10 @@ main {
         min-width: 100%;
     }
 
-    .services-grid {
-        grid-template-columns: 1fr;
+    .services-grid,
+    .price-table {
+        grid-template-columns: var(--service-card-width);
+        justify-content: center;
     }
 
     .auth-form {
@@ -901,22 +953,37 @@ main {
     font-size: 14px;
 }
 
-/* Прайс-таблица на странице метода */
+/* Прайс-таблица на странице метода (сетка одинаковых карточек) */
 .price-table {
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(255, 143, 163, 0.1);
-    overflow: hidden;
-    max-width: 600px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, var(--service-card-width));
+    gap: 20px;
+    justify-content: center;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+    max-width: 100%;
 }
 
 .price-row {
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
-    align-items: center;
-    padding: 14px 20px;
-    border-bottom: 1px solid #fff5f8;
-    transition: background 0.15s;
+    align-items: stretch;
+    width: var(--service-card-width);
+    height: var(--service-card-height);
+    min-width: var(--service-card-width);
+    max-width: var(--service-card-width);
+    min-height: var(--service-card-height);
+    max-height: var(--service-card-height);
+    padding: 18px 16px;
+    border-radius: 15px;
+    background: white;
+    box-shadow: 0 4px 15px rgba(255, 143, 163, 0.1);
+    border: none;
+    transition: box-shadow 0.15s;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .price-row:last-child {
@@ -924,12 +991,22 @@ main {
 }
 
 .price-row:hover {
-    background: #fff5f8;
+    background: white;
+    box-shadow: 0 6px 18px rgba(255, 143, 163, 0.18);
 }
 
 .price-zone {
     color: #4a4a4a;
     font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    height: 2.7em;
+    flex: 0 0 2.7em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
 }
 
 .price-amount {
@@ -946,8 +1023,11 @@ main {
 .price-row-actions {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
     flex-shrink: 0;
+    width: 100%;
+    margin-top: auto;
 }
 
 /* Активный пункт меню */
@@ -1050,8 +1130,10 @@ nav a.nav-active {
         grid-template-columns: 1fr;
     }
 
-    .services-grid {
-        grid-template-columns: 1fr;
+    .services-grid,
+    .price-table {
+        grid-template-columns: var(--service-card-width);
+        justify-content: center;
     }
 
     .filters-panel {

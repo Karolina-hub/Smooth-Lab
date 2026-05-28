@@ -473,9 +473,9 @@ function renderServices(items, favoriteIds = []) {
     return items.map(s => {
         const isFav = favoriteIds.includes(s._id);
         return `
-        <div class="card" id="card-${s._id}">
-            <h3>${s.title}</h3>
-            <p style="font-size:13px; color:#8a5a65; margin:2px 0 8px;">${s.method || ''}</p>
+        <div class="card service-card" id="card-${s._id}">
+            <h3 class="service-card-title">${s.title}</h3>
+            <p class="service-card-method">${s.method || ''}</p>
             <p class="card-price">${s.price} руб.</p>
             <div class="card-actions">
                 <button
