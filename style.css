@@ -50,6 +50,18 @@ nav {
     gap: 15px; 
 }
 
+.nav-toggle {
+    display: none;
+    background: #ff8fa3;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
 nav a {
     text-decoration: none;
     color: #8a5a65;
@@ -368,6 +380,7 @@ main {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    min-height: 170px;
 }
 
 .card-zone-badge {
@@ -452,10 +465,36 @@ main {
         padding: 1rem;
     }
 
+    .header {
+        position: relative;
+        align-items: flex-start;
+    }
+
+    .nav-toggle {
+        display: block;
+        position: absolute;
+        right: 16px;
+        top: 16px;
+    }
+
     nav {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 8px;
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        padding-top: 8px;
+    }
+
+    nav.is-open {
+        display: flex;
+    }
+
+    nav a {
+        display: block;
+        background: #fff;
+        border-radius: 10px;
+        padding: 8px 10px;
     }
 
     .filters-panel {
@@ -765,11 +804,7 @@ main {
     padding: 25px 20px;
     text-align: center;
     box-shadow: 0 4px 15px rgba(255, 143, 163, 0.1);
-    transition: transform 0.2s;
-}
-
-.method-card:hover {
-    transform: translateY(-5px);
+    min-height: 170px;
 }
 
 .method-icon {
@@ -964,8 +999,6 @@ nav a.nav-active {
     }
 
     nav {
-        flex-wrap: wrap;
-        justify-content: center;
         gap: 6px;
         font-size: 13px;
     }

@@ -5,6 +5,10 @@ const API_URL = (() => {
     return (fromWindow || fromMeta || 'http://localhost:5000').replace(/\/$/, '');
 })();
 
+function isAdminUser() {
+    return localStorage.getItem('isAdmin') === 'true';
+}
+
 function getRoutePath() {
     let path = window.location.pathname || '/';
     if (path.endsWith('/index.html')) path = path.replace(/\/index\.html$/, '') || '/';
@@ -342,6 +346,7 @@ const routes = {
             if (!res.ok) throw new Error("Ошибка доступа");
             const user = await res.json();
             if (user?.name) localStorage.setItem('userName', user.name);
+            localStorage.setItem('isAdmin', user?.isAdmin ? 'true' : 'false');
             return `
             <div class="fade-in">
                 <h1>Личный кабинет</h1>
@@ -628,7 +633,7 @@ function updateNav() {
         'nav-logout':    !!token,
         'nav-profile':   !!token,
         'nav-favorites': !!token,
-        'nav-admin':     !!token,
+        'nav-admin':     !!token && isAdminUser(),
         'nav-quiz':      !!token
     };
     for (const [id, show] of Object.entries(navItems)) {
@@ -643,6 +648,22 @@ function updateNav() {
         const isActive = path === linkPath || (linkPath !== '/' && path.startsWith(linkPath));
         link.classList.toggle('nav-active', isActive);
     });
+}
+
+function closeMobileMenu() {
+    const nav = document.querySelector('.nav');
+    const btn = document.getElementById('navToggle');
+    if (!nav || !btn) return;
+    nav.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleMobileMenu() {
+    const nav = document.querySelector('.nav');
+    const btn = document.getElementById('navToggle');
+    if (!nav || !btn) return;
+    const isOpen = nav.classList.toggle('is-open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 }
 
 window.showModal = (title, text) => {
@@ -844,6 +865,7 @@ window.submitRecovery = async () => {
         if (verifyRes.ok) {
             AuthState.setToken(verifyData.token);
             if (verifyData.user?.name) localStorage.setItem('userName', verifyData.user.name);
+            localStorage.setItem('isAdmin', verifyData.user?.isAdmin ? 'true' : 'false');
             closeRecoveryModal();
             navigateTo('/profile');
             showModal("Успех", "Вы успешно вошли в аккаунт!");
@@ -899,6 +921,7 @@ function initLoginLogic() {
                 const data = await res.json();
                 AuthState.setToken(data.token);
                 if (data.user?.name) localStorage.setItem('userName', data.user.name);
+                localStorage.setItem('isAdmin', data.user?.isAdmin ? 'true' : 'false');
                 setAuthMessage('Успешный вход!', 'green');
                 setTimeout(() => navigateTo('/profile'), 800);
             } else {
@@ -961,9 +984,13 @@ function initRegLogic() {
                 body: JSON.stringify(userData)
             });
             if (res.ok) {
+                const data = await res.json();
+                AuthState.setToken(data.token);
+                if (data.user?.name) localStorage.setItem('userName', data.user.name);
+                localStorage.setItem('isAdmin', data.user?.isAdmin ? 'true' : 'false');
                 msg.style.color = "green";
-                msg.innerText = "Успех! Теперь войдите.";
-                setTimeout(() => switchAuth('login'), 1500);
+                msg.innerText = "Регистрация успешна!";
+                setTimeout(() => navigateTo('/profile'), 600);
             } else {
                 msg.innerText = await getApiErrorMessage(res, 'Не удалось зарегистрироваться');
             }
@@ -1361,6 +1388,7 @@ const AuthState = {
         this.token = null;
         localStorage.removeItem('token');
         localStorage.removeItem('userName');
+        localStorage.removeItem('isAdmin');
         updateNav();
     }
 };
@@ -1432,6 +1460,10 @@ async function router() {
 
     if (['/profile', '/admin', '/favorites', '/quiz'].includes(path) && !token) {
         navigateTo('/auth');
+        return;
+    }
+    if (path === '/admin' && !isAdminUser()) {
+        navigateTo('/profile');
         return;
     }
 
@@ -1537,5 +1569,8 @@ async function router() {
 window.addEventListener('popstate', router);
 window.addEventListener('load', () => {
     migrateHashRouteIfNeeded();
+    const navToggle = document.getElementById('navToggle');
+    if (navToggle) navToggle.addEventListener('click', toggleMobileMenu);
+    document.querySelectorAll('.nav a').forEach(link => link.addEventListener('click', closeMobileMenu));
     router();
 });

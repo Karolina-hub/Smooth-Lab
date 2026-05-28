@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema({
     secretWord: { 
         type: String, 
         required: true 
+    },
+    isAdmin: {
+        type: Boolean,
+        default: false
     }
 }, { 
     timestamps: true 

@@ -3,6 +3,7 @@ const router = express.Router();
 const Service = require('../models/Service');
 const Master = require('../models/Master');
 const auth = require('../middleware/authMiddleware');
+const adminOnly = require('../middleware/adminMiddleware');
 
 // Получить список услуг с поддержкой фильтрации и поиска
 router.get('/', async (req, res) => {
@@ -84,7 +85,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Добавить новую услугу 
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, adminOnly, async (req, res) => {
     try {
         const { title, price, description, zone, method } = req.body;
 
@@ -109,7 +110,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Удалить услугу по ID 
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, adminOnly, async (req, res) => {
     try {
         const service = await Service.findByIdAndDelete(req.params.id);
         if (!service) {

@@ -42,6 +42,9 @@ router.post('/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt); 
 
+        const usersCount = await User.countDocuments();
+        const isFirstUser = usersCount === 0;
+
         const newUser = new User({ 
             email, 
             phone, 
@@ -49,11 +52,21 @@ router.post('/register', async (req, res) => {
             name,
             securityQuestion, 
             secretWord: secretWord.toLowerCase().trim(), 
+            isAdmin: isFirstUser,
             createdAt: new Date()
         });
 
         await newUser.save();
-        res.status(201).json({ message: 'Пользователь создан!' });
+        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.status(201).json({
+            token,
+            user: {
+                id: newUser._id,
+                name: newUser.name,
+                email: newUser.email,
+                isAdmin: newUser.isAdmin
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -87,7 +100,7 @@ router.post('/verify-secret', async (req, res) => {
         }
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+        res.json({ token, user: { id: user._id, name: user.name, email: user.email, isAdmin: !!user.isAdmin } });
     } catch (err) {
         res.status(500).json({ error: 'Ошибка сервера' });
     }
@@ -105,7 +118,7 @@ router.post('/login', async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: 'Неверный пароль' });
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+        res.json({ token, user: { id: user._id, name: user.name, email: user.email, isAdmin: !!user.isAdmin } });
     } catch (err) {
         res.status(500).json({ error: 'Ошибка сервера' });
     }

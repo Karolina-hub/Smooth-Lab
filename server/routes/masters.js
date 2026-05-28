@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Master = require('../models/Master');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminOnly = require('../middleware/adminMiddleware');
 
 // Получить всех мастеров
 router.get('/', async (req, res) => {
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 // Добавить мастера
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, adminOnly, async (req, res) => {
     try {
         const master = new Master(req.body);
         await master.save();
@@ -25,7 +26,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Удалить мастера по ID 
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, adminOnly, async (req, res) => {
     try {
         const master = await Master.findByIdAndDelete(req.params.id);
         if (!master) {
