@@ -7,7 +7,7 @@ const auth = require('../middleware/authMiddleware');
 router.get('/', auth, async (req, res) => {
     try {
         const favorites = await Favorite.find({ user: req.user.id }).populate('service');
-        // Возвращаем только данные услуг (без обёртки)
+        // Возвращаем только данные услуг 
         const services = favorites.map(f => f.service).filter(Boolean);
         res.json(services);
     } catch (err) {

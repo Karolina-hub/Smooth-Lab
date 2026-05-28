@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Контент страниц и квиза отдается через API, чтобы фронтенд
-// получал текст/шаги динамически, а не из зашитых констант.
+// Контент страниц и квиза отдается через API
 router.get('/', async (req, res) => {
     res.json({
         pages: {

@@ -1,180 +1,228 @@
 # Smooth Lab
 
-SPA-приложение для студии эпиляции: каталог услуг, подбор процедуры через квиз, личный кабинет, избранное и админ-панель.
+Веб-приложение студии эпиляции: каталог услуг, квиз подбора процедуры, личный кабинет, избранное и админ-панель. Данные хранятся в MongoDB Atlas, интерфейс развёрнут на Netlify, API — на Render.
 
-## Production ссылки
+---
 
-- **Репозиторий:** https://github.com/Karolina-hub/Smooth-Lab
-- **Frontend (Netlify):** https://willowy-daffodil-79c7c3.netlify.app
-- **Backend API (Render):** https://smooth-lab-api.onrender.com
-- **База данных:** MongoDB Atlas (облако)
+## Ссылки (production)
 
-> Открывайте сайт по ссылке Netlify, а не по URL Render.  
-> `https://smooth-lab-api.onrender.com` — это только API (JSON/health).
+| Ресурс | URL |
+|--------|-----|
+| Репозиторий | https://github.com/Karolina-hub/Smooth-Lab |
+| Frontend (сайт) | https://willowy-daffodil-79c7c3.netlify.app |
+| Backend API | https://smooth-lab-api.onrender.com |
+| Проверка API | https://smooth-lab-api.onrender.com/api/health |
+| Запись | tel:7703 |
+
+> Открывайте именно **Netlify URL** для просмотра сайта.  
+> `smooth-lab-api.onrender.com` — это только API (JSON), не визуальный интерфейс.
+
+---
 
 ## Ключевые функции
 
-- SPA-навигация с публичными и приватными маршрутами.
-- Регистрация, вход, восстановление доступа по секретному вопросу.
-- Каталог услуг с фильтрацией, пагинацией и сортировкой.
-- Добавление/удаление услуг в избранное с сохранением в БД.
-- Интерактивный квиз с подбором метода и выдачей рекомендаций.
-- Админ-раздел: CRUD для услуг и мастеров.
-- Обработка сетевых ошибок и состояния загрузки.
+- **8+ разделов** с клиентским роутингом (History API, без `#`): главная, каталог, поиск, квиз, специалисты, избранное, профиль, админ.
+- **Динамический контент** с бэкенда (услуги, мастера, пользователи, избранное, контент страниц).
+- **Авторизация:** регистрация, вход, восстановление через секретный вопрос, JWT.
+- **Каталог:** фильтры (зона, цена, мастер), сортировка, пагинация «Загрузить ещё», лайки в избранное.
+- **Квиз:** 4 шага → рекомендация метода и список услуг с API.
+- **Админ-панель:** добавление/удаление услуг и мастеров (только для авторизованных).
+- **UX:** спиннеры загрузки, обработка ошибок, адаптивная вёрстка (в т.ч. 375px).
+
+---
 
 ## Технологии
 
-- Frontend: HTML, CSS, Vanilla JavaScript (ES6+), hash-router.
-- Backend: Node.js, Express.
-- База данных: MongoDB (Mongoose).
-- Авторизация: JWT + middleware.
-- Хостинг: Netlify (frontend), Render (backend), MongoDB Atlas (database).
+| Слой | Стек | Зачем выбран |
+|------|------|-------------|
+| Frontend | HTML, CSS, Vanilla JS (ES6+) | Простой SPA без тяжёлого фреймворка, быстрый деплой на Netlify |
+| Роутинг | History API (SPA) | Чистые URL (`/catalog`, `/profile`), редиректы в `netlify.toml` |
+| Backend | Node.js, Express 5 | API, JWT, middleware, MongoDB |
+| БД | MongoDB Atlas (Mongoose) | Облачная NoSQL, бесплатный tier для учебного проекта |
+| Auth | JWT + bcrypt | Стандарт для REST API |
+| Frontend host | Netlify | Статика + CDN |
+| Backend host | Render | Node.js API + env vars |
+| DB host | MongoDB Atlas | Managed MongoDB |
+
+---
 
 ## Локальный запуск
 
-### 1) Клонировать репозиторий
+### 1. Клонирование и зависимости
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Karolina-hub/Smooth-Lab.git
 cd Smooth-Lab
-```
-
-### 2) Настроить backend
-
-```bash
 cd server
 npm install
 ```
 
-Создать файл `server/.env`:
+### 2. Переменные окружения (`server/.env`)
+
+Скопируйте `server/.env.example` в `server/.env` и заполните:
 
 ```env
-MONGO_URI=<your_mongodb_connection_string>
-JWT_SECRET=<your_jwt_secret>
+MONGO_URI=mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/smoothlab?retryWrites=true&w=majority
+JWT_SECRET=your_strong_secret_min_16_chars
 PORT=5000
 CORS_ORIGIN=http://localhost:5500
 ```
 
-Запустить сервер:
+- `MONGO_URI` — строка подключения из MongoDB Atlas (см. раздел ниже).
+- Для локального API на фронте добавьте к URL: `http://127.0.0.1:5500/?useLocalApi=1`
+
+### 3. Запуск backend
 
 ```bash
+cd server
 npm start
 ```
 
-Если нет скрипта `start`, запуск вручную:
+Проверка: http://localhost:5000/api/health → `{"ok":true,...}`
+
+### 4. Запуск frontend
+
+Откройте `index.html` через Live Server или аналог (порт 5500).  
+По умолчанию фронт ходит на production API; для локального backend — `?useLocalApi=1`.
+
+### 5. Наполнение тестовыми данными (опционально)
 
 ```bash
-node index.js
+cd server
+npm run seed
 ```
 
-### 3) Настроить frontend
+Создаёт услуги и демо-мастера в Atlas (использует `MONGO_URI` из `.env`).
 
-Открыть `index.html` через локальный сервер (например Live Server).
+---
 
-По умолчанию frontend использует API из:
-- `window.__API_URL` (если задано), или
-- `<meta name="api-url" ...>` в `index.html`.
+## Деплой
 
-По умолчанию frontend использует production API (`https://smooth-lab-api.onrender.com`).  
-Для локального backend добавьте к URL: `?useLocalApi=1` (например `http://127.0.0.1:5500/?useLocalApi=1`).
+### MongoDB Atlas
 
-## Деплой (самый простой путь)
+1. [MongoDB Atlas](https://cloud.mongodb.com/) → создать кластер (Free tier).
+2. Database Access → Add IP `0.0.0.0/0` (для Render).
+3. Создать пользователя БД, скопировать connection string.
+4. В connection string указать имя БД, например: `/smoothlab`  
+   Итоговый URI: `mongodb+srv://user:pass@cluster.../smoothlab?...`
 
-Выбранный вариант:
-- **Backend:** Render (Web Service)
-- **Frontend:** Netlify (Static Site)
-- **База:** MongoDB Atlas
+### Render (backend)
 
-### 1) MongoDB Atlas
+1. New → Web Service, подключить репозиторий.
+2. **Root Directory:** `server`
+3. **Build:** `npm install`
+4. **Start:** `npm start`
+5. **Environment Variables:**
 
-- Создать кластер и пользователя БД.
-- Получить строку подключения `MONGO_URI`.
-- В Network Access разрешить доступ для Render (обычно `0.0.0.0/0`, если нет фиксированных IP).
+| Key | Value |
+|-----|--------|
+| `MONGO_URI` | строка из Atlas |
+| `JWT_SECRET` | длинный секрет |
+| `CORS_ORIGIN` | `https://willowy-daffodil-79c7c3.netlify.app` |
 
-### 2) Backend на Render
+После деплоя: `https://<service>.onrender.com/api/health`
 
-- Подключить GitHub-репозиторий.
-- Root Directory: `server`
-- Build Command: `npm install`
-- Start Command: `npm start`
-- Environment Variables:
-  - `MONGO_URI=<atlas-uri>`
-  - `JWT_SECRET=<strong-secret>`
-  - `PORT=10000` (или оставить пустым — Render подставит свой)
-  - `CORS_ORIGIN=https://<your-netlify-site>.netlify.app`
-- После деплоя проверить:
-  - `GET https://<your-render-service>.onrender.com/api/health`
+### Netlify (frontend)
 
-### 3) Frontend на Netlify
+1. New site from Git → репозиторий `Karolina-hub/Smooth-Lab`.
+2. **Build command:** пусто  
+3. **Publish directory:** `.` (корень репозитория)
+4. В `index.html` в `<meta name="api-url-prod">` указать URL Render.
+5. Deploy → проверить сайт и API в Network tab браузера.
 
-- New site from Git -> этот же репозиторий.
-- Base directory: пусто (корень проекта)
-- Build command: пусто
-- Publish directory: `.`
-- После создания сайта:
-  - в `index.html` обновить `<meta name="api-url-prod" ...>` на Render URL
-  - redeploy сайта
+---
 
-### 4) Проверка связки
+## API (основные эндпоинты)
 
-- Открыть frontend URL.
-- Проверить сценарии: регистрация, логин, каталог, поиск, избранное, профиль, админ-панель.
-- Убедиться, что запросы идут в Render API, а не на localhost.
+| Метод | Путь | Описание | Auth |
+|-------|------|----------|------|
+| GET | `/api/health` | Проверка сервера | нет |
+| POST | `/api/auth/register` | Регистрация | нет |
+| POST | `/api/auth/login` | Вход | нет |
+| GET | `/api/auth/get-question?email=` | Секретный вопрос (восстановление) | нет |
+| POST | `/api/auth/verify-secret` | Проверка ответа, сброс пароля | нет |
+| GET | `/api/auth/me` | Текущий пользователь | JWT |
+| GET | `/api/services` | Список услуг (фильтры, поиск, сортировка, пагинация) | нет |
+| POST/DELETE | `/api/services`, `/api/services/:id` | Добавить / удалить услугу | JWT |
+| GET | `/api/masters` | Список мастеров | нет |
+| POST/DELETE | `/api/masters`, `/api/masters/:id` | Добавить / удалить мастера | JWT |
+| GET | `/api/favorites` | Избранное | JWT |
+| POST/DELETE | `/api/favorites/:serviceId` | Добавить / убрать из избранного | JWT |
+| GET | `/api/content` | Тексты страниц и шаги квиза | нет |
 
-## Основные API эндпоинты
+Полный список см. в коде: `server/routes/`.
 
-### Auth
+---
 
-- `POST /api/auth/register` — регистрация пользователя.
-- `POST /api/auth/login` — вход по email/паролю.
-- `GET /api/auth/me` — данные текущего пользователя (JWT).
-- `GET /api/auth/get-question?email=...` — получить секретный вопрос.
-- `POST /api/auth/verify-secret` — вход по секретному ответу.
+## Маршруты фронтенда
 
-### Services
+| Путь | Доступ | Описание |
+|------|--------|----------|
+| `/` | публичный | Главная |
+| `/auth` | публичный | Вход / регистрация |
+| `/catalog` | публичный | Каталог методов + фильтры |
+| `/catalog/:method` | публичный | Зоны и цены метода |
+| `/search` | публичный | Поиск |
+| `/specialists` | публичный | Список мастеров |
+| `/quiz` | приватный | Квиз (нужен вход) |
+| `/favorites` | приватный | Избранное |
+| `/profile` | приватный | Профиль |
+| `/admin` | приватный | Управление услугами и мастерами |
 
-- `GET /api/services` — список услуг.
-- `GET /api/services/:id` — одна услуга.
-- `POST /api/services` — создать услугу (JWT).
-- `DELETE /api/services/:id` — удалить услугу (JWT).
-- Параметры `GET /api/services`:
-  - `search` — поиск по названию/методу,
-  - `zone`, `minPrice`, `maxPrice`, `method`, `master`,
-  - `isZone=true|false`,
-  - `limit`, `skip` (пагинация),
-  - `sortBy=price|title|createdAt`, `order=asc|desc`.
+---
 
-### Favorites
+## Где лежат данные в Atlas
 
-- `GET /api/favorites` — избранные услуги пользователя (JWT).
-- `GET /api/favorites/ids` — ID избранных услуг для подсветки (JWT).
-- `POST /api/favorites/:serviceId` — добавить в избранное (JWT).
-- `DELETE /api/favorites/:serviceId` — удалить из избранного (JWT).
+1. Atlas → **Data Explorer** → база `smoothlab` (или как в `MONGO_URI`).
+2. Коллекции:
+   - `users` — пользователи (email, пароль, секретный вопрос)
+   - `services` — услуги (название, цена, зона, метод)
+   - `masters` — мастера (имя, специализация)
+   - `favorites` — связи user ↔ service
 
-### Masters
+Данные с локальной MongoDB **не попадают** в Atlas автоматически — только то, что создано через API/seed на сервере с Atlas `MONGO_URI`.
 
-- `GET /api/masters` — список мастеров.
-- `POST /api/masters` — добавить мастера (JWT).
-- `DELETE /api/masters/:id` — удалить мастера (JWT).
+**Важно:** аккаунт, зарегистрированный локально, на Netlify не сработает (другая БД). Для проверки production зарегистрируйтесь на сайте Netlify или выполните `npm run seed` с `MONGO_URI` от Atlas.
 
-## Маршруты frontend
+---
 
-- Публичные: `/`, `/auth`, `/catalog`, `/catalog/:method`, `/search`, `/specialists`.
-- Приватные: `/favorites`, `/profile`, `/admin`, `/quiz`.
-- `404` страница для неизвестных hash-маршрутов.
+## Скриншоты для сдачи
 
-## Скриншоты (добавить перед сдачей)
+Добавьте в `docs/screenshots/` файлы (например `home.png`, `catalog.png`, `profile.png`) и раскомментируйте в README:
 
-Добавить 3-5 скриншотов в репозиторий (например в папку `docs/screenshots`):
-
-- Главная страница.
-- Каталог/детали метода.
-- Личный кабинет.
-- Избранное.
-- Админ-панель (опционально).
-
-И вставить их в README через Markdown:
-
-```md
+```markdown
 ![Главная](docs/screenshots/home.png)
+![Каталог](docs/screenshots/catalog.png)
+![Личный кабинет](docs/screenshots/profile.png)
+```
+
+---
+
+## Что сдать преподавателю (чеклист)
+
+- [ ] Ссылка на GitHub
+- [ ] Ссылка на работающий фронтенд (Netlify)
+- [ ] Ссылка на API (Render `/api/health`)
+- [ ] README с инструкцией запуска
+- [ ] 3–5 скриншотов в репозитории
+- [ ] Видео 4–5 мин или демо на занятии (по ЛР3/ЛР4)
+
+---
+
+## Структура проекта
+
+```
+Smooth-Lab/
+├── index.html          # SPA shell, meta api-url
+├── app.js              # Роутинг, UI, API-клиент
+├── style.css
+├── netlify.toml
+├── server/
+│   ├── index.js
+│   ├── routes/         # auth, services, masters, favorites, content
+│   ├── models/
+│   ├── middleware/
+│   └── scripts/seedServices.js
+├── docs/screenshots/
+└── README.md
 ```

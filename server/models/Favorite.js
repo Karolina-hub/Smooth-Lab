@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Хранит связь "пользователь → услуга" для раздела Избранное
+// Хранит связь "пользователь → услуга" 
 const favoriteSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
@@ -16,7 +16,7 @@ const favoriteSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Уникальная пара: один пользователь не может лайкнуть одну услугу дважды
+// Уникальная пара
 favoriteSchema.index({ user: 1, service: 1 }, { unique: true });
 
 module.exports = mongoose.model('Favorite', favoriteSchema);

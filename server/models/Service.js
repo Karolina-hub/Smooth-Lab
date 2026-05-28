@@ -25,7 +25,7 @@ const serviceSchema = new mongoose.Schema({
         enum: METHODS,
         default: 'Лазерная эпиляция'
     },
-    // true — это зона (голени, бёдра и т.д.), false — тариф (игла, час работы)
+    // true — зона, false — тариф 
     isZone: {
         type: Boolean,
         default: true

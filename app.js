@@ -1,4 +1,4 @@
-// Базовый URL API: можно задать через window.__API_URL__ или meta[name="api-url"]
+// Базовый URL API
 const API_URL = (() => {
     const fromWindow = window.__API_URL__;
     const fromMeta = document.querySelector('meta[name="api-url"]')?.content;

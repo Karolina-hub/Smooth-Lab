@@ -1,8 +1,3 @@
-/**
- * Скрипт заполнения базы данных услугами.
- * Запуск из папки /server: node scripts/seedServices.js
- * ВНИМАНИЕ: удаляет все существующие услуги и добавляет новые.
- */
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 dotenv.config();

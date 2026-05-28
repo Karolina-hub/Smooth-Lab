@@ -5,7 +5,6 @@ const Master = require('../models/Master');
 const auth = require('../middleware/authMiddleware');
 
 // Получить список услуг с поддержкой фильтрации и поиска
-// Параметры: ?zone=Лицо&minPrice=100&maxPrice=500&master=<id>&search=название&method=Лазерная эпиляция
 router.get('/', async (req, res) => {
     try {
         const { zone, minPrice, maxPrice, master, search, method, isZone, sortBy, order } = req.query;
@@ -84,7 +83,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Добавить новую услугу (только для авторизованных)
+// Добавить новую услугу 
 router.post('/', auth, async (req, res) => {
     try {
         const { title, price, description, zone, method } = req.body;
@@ -109,7 +108,7 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-// Удалить услугу по ID (только для авторизованных)
+// Удалить услугу по ID 
 router.delete('/:id', auth, async (req, res) => {
     try {
         const service = await Service.findByIdAndDelete(req.params.id);
