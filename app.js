@@ -42,6 +42,41 @@ const METHOD_META = {
     'Вакcинг':           { icon: '🌿', desc: 'Быстрое удаление воском на 2–4 недели.' }
 };
 
+const FALLBACK_CONTENT = {
+    pages: {
+        home: {
+            heroTitle: 'Smooth Lab',
+            heroSubtitle: 'Профессиональное удаление волос — лазер, вакcинг, шугаринг, электроэпиляция'
+        },
+        catalog: {
+            title: 'Каталог услуг',
+            subtitle: 'Выберите метод или отфильтруйте все услуги ниже.'
+        },
+        search: {
+            title: 'Поиск услуг',
+            placeholder: 'Введите название или метод...'
+        },
+        quiz: {
+            title: 'Подбор процедуры',
+            subtitle: 'Ответьте на несколько вопросов — мы подберём подходящие услуги именно для вас.'
+        }
+    },
+    quizSteps: []
+};
+
+let contentCache = null;
+async function getContent() {
+    if (contentCache) return contentCache;
+    try {
+        const res = await fetch(`${API_URL}/api/content`);
+        if (!res.ok) throw new Error();
+        contentCache = await res.json();
+        return contentCache;
+    } catch (_) {
+        return FALLBACK_CONTENT;
+    }
+}
+
 function buildMethodCardsHtml(services) {
     const methods = [...new Set(services.map(s => s.method).filter(Boolean))];
     if (methods.length === 0) {
@@ -117,6 +152,8 @@ window.fetch = async (...args) => {
 const routes = {
     '/': async () => {
         try {
+            const content = await getContent();
+            const homeContent = content.pages?.home || FALLBACK_CONTENT.pages.home;
             const [servicesRes, mastersRes] = await Promise.all([
                 fetch(`${API_URL}/api/services`),
                 fetch(`${API_URL}/api/masters`)
@@ -134,8 +171,8 @@ const routes = {
             return `
                 <div class="fade-in">
                     <section class="hero">
-                        <h1 class="hero-title">Smooth <span>Lab</span></h1>
-                        <p class="hero-sub">Профессиональное удаление волос — лазер, вакcинг, шугаринг, электроэпиляция</p>
+                        <h1 class="hero-title">${homeContent.heroTitle.replace(' ', ' <span>')}${homeContent.heroTitle.includes(' ') ? '</span>' : ''}</h1>
+                        <p class="hero-sub">${homeContent.heroSubtitle}</p>
                         <div class="hero-actions">
                             <a href="/quiz" class="btn btn-primary">Подобрать процедуру</a>
                             <a href="/catalog" class="btn btn-secondary">Весь каталог</a>
@@ -193,13 +230,15 @@ const routes = {
     
     '/catalog': async () => {
         try {
+            const content = await getContent();
+            const catalogContent = content.pages?.catalog || FALLBACK_CONTENT.pages.catalog;
             const res = await fetch(`${API_URL}/api/services`);
             if (!res.ok) throw new Error();
             const services = await res.json();
             return `
             <div class="fade-in">
-                <h1>Каталог услуг</h1>
-                <p style="color:#8a5a65; margin-bottom:30px;">Выберите метод или отфильтруйте все услуги ниже.</p>
+                <h1>${catalogContent.title}</h1>
+                <p style="color:#8a5a65; margin-bottom:30px;">${catalogContent.subtitle}</p>
                 <div class="methods-grid">${buildMethodCardsHtml(services)}</div>
                 ${renderCatalogFiltersBlock()}
                 <p style="color:#8a5a65; font-size:14px; margin-top:8px;">В блоке «Все услуги» нажмите 🤍 для добавления в избранное.</p>
@@ -223,10 +262,7 @@ const routes = {
                 return `
                 <div class="fade-in">
                     <h1>Специалисты</h1>
-                    <div class="card" style="text-align:center;">
-                        <p>Пока нет специалистов в базе.</p>
-                        <p style="color:#8a5a65; font-size:14px;">Добавьте через админ-панель или POST /api/masters (нужен JWT).</p>
-                    </div>
+                    <div style="min-height: 180px;"></div>
                 </div>`;
             }
 
@@ -255,7 +291,7 @@ const routes = {
         <div class="fade-in">
             <h1>Поиск услуг</h1>
             <div style="display:flex; gap:10px; flex-wrap:wrap; max-width:600px; margin:0 auto 20px;">
-                <input type="text" id="searchInput" placeholder="Введите название или метод..." oninput="debouncedSearch(this.value)" onkeydown="if(event.key==='Enter')handleSearchFromButton()" autocomplete="off" style="flex:1; min-width:200px;">
+                <input type="text" id="searchInput" placeholder="${FALLBACK_CONTENT.pages.search.placeholder}" oninput="debouncedSearch(this.value)" onkeydown="if(event.key==='Enter')handleSearchFromButton()" autocomplete="off" style="flex:1; min-width:200px;">
                 <button type="button" class="btn btn-primary" onclick="handleSearchFromButton()">Найти</button>
             </div>
             <div id="searchResults" class="services-grid" style="margin-top:20px;"></div>
@@ -1130,7 +1166,7 @@ window.deleteMaster = async (id) => {
 
 // Квиз: подбор метода эпиляции
 
-const QUIZ_STEPS = [
+let QUIZ_STEPS = [
     {
         id: 'hair',
         question: 'Какой у вас цвет волос в зоне обработки?',
@@ -1174,7 +1210,15 @@ function initQuiz() {
     const container = document.getElementById('quizStep');
     if (!container) return;
     Object.keys(quizAnswers).forEach(k => delete quizAnswers[k]);
-    renderQuizStep(0);
+    getContent().then((content) => {
+        const steps = content.quizSteps;
+        if (Array.isArray(steps) && steps.length > 0) {
+            QUIZ_STEPS = steps;
+        }
+        renderQuizStep(0);
+    }).catch(() => {
+        renderQuizStep(0);
+    });
 }
 
 function renderQuizStep(stepIndex) {

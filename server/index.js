@@ -27,6 +27,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes); 
 app.use('/api/masters', require('./routes/masters'));
 app.use('/api/favorites', require('./routes/favorites'));
+app.use('/api/content', require('./routes/content'));
 
 // Проверочный маршрут
 app.get('/', (req, res) => {
