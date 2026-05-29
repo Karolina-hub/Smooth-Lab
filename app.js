@@ -9,6 +9,27 @@ function isAdminUser() {
     return localStorage.getItem('isAdmin') === 'true';
 }
 
+async function syncUserSession() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+        const res = await fetch(`${API_URL}/api/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+            if (res.status === 401) AuthState.clear();
+            return;
+        }
+
+        const user = await res.json();
+        localStorage.setItem('isAdmin', user?.isAdmin ? 'true' : 'false');
+        if (user?.name) localStorage.setItem('userName', user.name);
+        updateNav();
+    } catch (_) {}
+}
+
 function getRoutePath() {
     let path = window.location.pathname || '/';
     if (path.endsWith('/index.html')) path = path.replace(/\/index\.html$/, '') || '/';
@@ -1567,10 +1588,11 @@ async function router() {
 }
 
 window.addEventListener('popstate', router);
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
     migrateHashRouteIfNeeded();
     const navToggle = document.getElementById('navToggle');
     if (navToggle) navToggle.addEventListener('click', toggleMobileMenu);
     document.querySelectorAll('.nav a').forEach(link => link.addEventListener('click', closeMobileMenu));
+    await syncUserSession();
     router();
 });

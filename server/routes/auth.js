@@ -18,6 +18,27 @@ async function findUserByEmail(email) {
     return User.findOne({ email: { $regex: new RegExp(`^${escaped}$`, 'i') } });
 }
 
+// Если админа ещё нет — назначаем самого первого зарегистрированного
+async function ensurePrimaryAdmin() {
+    const adminCount = await User.countDocuments({ isAdmin: true });
+    if (adminCount > 0) return;
+
+    const firstUser = await User.findOne().sort({ createdAt: 1 });
+    if (firstUser) {
+        firstUser.isAdmin = true;
+        await firstUser.save();
+    }
+}
+
+function userPayload(user) {
+    return {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: !!user.isAdmin
+    };
+}
+
 // Регистрация
 router.post('/register', async (req, res) => {
     try {
@@ -57,15 +78,12 @@ router.post('/register', async (req, res) => {
         });
 
         await newUser.save();
-        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        await ensurePrimaryAdmin();
+        const savedUser = await User.findById(newUser._id);
+        const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
         res.status(201).json({
             token,
-            user: {
-                id: newUser._id,
-                name: newUser.name,
-                email: newUser.email,
-                isAdmin: newUser.isAdmin
-            }
+            user: userPayload(savedUser)
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -99,8 +117,10 @@ router.post('/verify-secret', async (req, res) => {
             return res.status(400).json({ message: 'Неверный ответ на вопрос!' });
         }
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user._id, name: user.name, email: user.email, isAdmin: !!user.isAdmin } });
+        await ensurePrimaryAdmin();
+        const freshUser = await User.findById(user._id);
+        const token = jwt.sign({ id: freshUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.json({ token, user: userPayload(freshUser) });
     } catch (err) {
         res.status(500).json({ error: 'Ошибка сервера' });
     }
@@ -117,8 +137,10 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) return res.status(400).json({ message: 'Неверный пароль' });
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user._id, name: user.name, email: user.email, isAdmin: !!user.isAdmin } });
+        await ensurePrimaryAdmin();
+        const freshUser = await User.findById(user._id);
+        const token = jwt.sign({ id: freshUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.json({ token, user: userPayload(freshUser) });
     } catch (err) {
         res.status(500).json({ error: 'Ошибка сервера' });
     }
@@ -127,6 +149,7 @@ router.post('/login', async (req, res) => {
 // Получение данных текущего пользователя 
 router.get('/me', auth, async (req, res) => {
     try {
+        await ensurePrimaryAdmin();
         const user = await User.findById(req.user.id).select('-passwordHash');
         res.json(user);
     } catch (err) {
