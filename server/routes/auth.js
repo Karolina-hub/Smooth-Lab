@@ -24,10 +24,9 @@ async function ensurePrimaryAdmin() {
     if (adminCount > 0) return;
 
     const firstUser = await User.findOne().sort({ createdAt: 1 });
-    if (firstUser) {
-        firstUser.isAdmin = true;
-        await firstUser.save();
-    }
+    if (!firstUser) return;
+
+    await User.updateOne({ _id: firstUser._id }, { $set: { isAdmin: true } });
 }
 
 function userPayload(user) {

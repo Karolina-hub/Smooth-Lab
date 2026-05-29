@@ -7,6 +7,7 @@
     "start": "node index.js",
     "seed:services": "node scripts/seedServices.js",
     "seed": "node scripts/seedServices.js",
+    "set-admin": "node scripts/setPrimaryAdmin.js",
     "test": "echo \"No tests configured\""
   },
   "keywords": [],
